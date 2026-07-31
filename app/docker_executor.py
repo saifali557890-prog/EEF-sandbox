@@ -16,16 +16,23 @@ BASE_IMAGES = {
     "Unknown": "python:3.11-slim",
 }
 
+# Hard safety ceiling — no evaluation is allowed to run longer than this,
+# regardless of what the repo's own code does (protects against infinite
+# loops / resource exhaustion from an untrusted submission).
+HARD_TIMEOUT_SECONDS = 90
+
+
 def clone_repository(github_url: str) -> str:
     temp_dir = tempfile.mkdtemp(prefix="sandbox_")
     git.Repo.clone_from(github_url, temp_dir, depth=1)
     return temp_dir
 
+
 def run_in_container(repo_path: str, stack: str, timeout_seconds: int = 60):
     """
-    Quick build/launch check — confirms the base image runs against this repo
-    and captures a resource-usage snapshot. Does not execute the test suite;
-    see run_real_tests() for that.
+    Quick build/launch check. This container never needs internet access —
+    it only confirms the base image can mount and read the repo — so
+    network access is fully disabled here (network_disabled=True).
     """
     image = BASE_IMAGES.get(stack, "python:3.11-slim")
     start_time = time.time()
@@ -48,6 +55,10 @@ def run_in_container(repo_path: str, stack: str, timeout_seconds: int = 60):
             detach=True,
             mem_limit="512m",
             nano_cpus=1_000_000_000,
+            network_disabled=True,          # no internet needed for this check
+            cap_drop=["ALL"],               # drop all Linux capabilities
+            security_opt=["no-new-privileges"],
+            pids_limit=128,                 # prevent fork-bomb style abuse
         )
 
         try:
@@ -84,7 +95,6 @@ def run_in_container(repo_path: str, stack: str, timeout_seconds: int = 60):
 
 
 def _parse_pytest_summary(output: str):
-    """Extracts 'N passed' / 'N failed' counts from pytest's final summary line."""
     passed_match = re.search(r"(\d+)\s+passed", output)
     failed_match = re.search(r"(\d+)\s+failed", output)
     passed = int(passed_match.group(1)) if passed_match else None
@@ -92,18 +102,15 @@ def _parse_pytest_summary(output: str):
     return passed, failed
 
 
-def run_real_tests(repo_path: str, stack: str, timeout_seconds: int = 120) -> dict:
+def run_real_tests(repo_path: str, stack: str, timeout_seconds: int = HARD_TIMEOUT_SECONDS) -> dict:
     """
-    Actually executes the project's test suite inside an isolated Docker
-    container — this is real dynamic analysis, not just file detection.
-
-    Supported today: Python (pytest) and MERN (npm test).
-    Laravel and Flutter are intentionally NOT auto-executed here, because a
-    generic, dependency-free test run for those stacks usually requires a
-    configured database or emulator that can't be safely assumed — running
-    them would produce misleading pass/fail results rather than an honest
-    "not supported" signal. Static test-file detection is used for those
-    stacks instead (see test_runner.py).
+    Executes the project's real test suite inside an isolated Docker
+    container. This container DOES need network access (to install
+    dependencies), so instead of disabling the network entirely, it is
+    locked down with: dropped Linux capabilities, no-new-privileges,
+    a hard process-count limit, and a hard wall-clock timeout that force-
+    kills the container if it's exceeded — untrusted code cannot hang the
+    evaluation pipeline or exhaust host resources indefinitely.
     """
     image = BASE_IMAGES.get(stack, "python:3.11-slim")
 
@@ -128,6 +135,7 @@ def run_real_tests(repo_path: str, stack: str, timeout_seconds: int = 120) -> di
     container = None
     output = ""
     exit_code = None
+    timed_out = False
 
     try:
         container = client.containers.run(
@@ -138,10 +146,26 @@ def run_real_tests(repo_path: str, stack: str, timeout_seconds: int = 120) -> di
             detach=True,
             mem_limit="768m",
             nano_cpus=1_000_000_000,
+            cap_drop=["ALL"],
+            security_opt=["no-new-privileges"],
+            pids_limit=256,
         )
-        result = container.wait(timeout=timeout_seconds)
-        exit_code = result.get("StatusCode", 1)
+
+        try:
+            result = container.wait(timeout=timeout_seconds)
+            exit_code = result.get("StatusCode", 1)
+        except Exception:
+            # Wall-clock timeout hit — force-kill immediately rather than
+            # letting an untrusted process keep running on the host.
+            timed_out = True
+            try:
+                container.kill()
+            except Exception:
+                pass
+            exit_code = 124  # conventional "timed out" exit code
+
         output = container.logs().decode(errors="ignore")
+
     except Exception as e:
         output = f"Test execution error: {e}"
         exit_code = 1
@@ -152,8 +176,13 @@ def run_real_tests(repo_path: str, stack: str, timeout_seconds: int = 120) -> di
             except Exception:
                 pass
 
-    # MERN: no "test" script defined in package.json — this is not a failure,
-    # it just means there's nothing to execute. Fall back to static detection.
+    if timed_out:
+        return {
+            "executed": False,
+            "reason": f"Test execution exceeded the {timeout_seconds}s safety limit and was terminated.",
+            "output_tail": output[-1000:],
+        }
+
     if stack == "MERN" and "missing script" in output.lower():
         return {
             "executed": False,
@@ -161,8 +190,6 @@ def run_real_tests(repo_path: str, stack: str, timeout_seconds: int = 120) -> di
             "output_tail": output[-1000:],
         }
 
-    # pytest exit code 5 = no tests were collected at all — not a failure,
-    # just means there's nothing to run. Fall back to static detection.
     if stack == "Python" and exit_code == 5:
         return {
             "executed": False,
@@ -170,8 +197,6 @@ def run_real_tests(repo_path: str, stack: str, timeout_seconds: int = 120) -> di
             "output_tail": output[-1000:],
         }
 
-    # Environment-level errors (bad pytest invocation, interrupted run, etc.)
-    # are not the same as "the code's tests failed" — don't penalize for these.
     if stack == "Python" and exit_code in (2, 3, 4):
         return {
             "executed": False,

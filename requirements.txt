@@ -9,3 +9,9 @@ psutil
 requests==2.31.0
 urllib3<2
 python-dotenv
+slowapi
+passlib[bcrypt]
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==4.0.1
+python-jose[cryptography]

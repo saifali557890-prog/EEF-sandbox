@@ -1,11 +1,17 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import os
 import json
 
-from app.models import init_db, SessionLocal, Evaluation
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+from app.models import init_db, SessionLocal, Evaluation, User
+from app.auth import hash_password, verify_password, create_access_token, decode_access_token
 from app.stack_detector import detect_stack
 from app.docker_executor import clone_repository, run_in_container, run_real_tests, cleanup_repo
 from app.static_analysis import check_project_structure, scan_for_exposed_secrets
@@ -14,8 +20,13 @@ from app.scoring import calculate_scores
 from app.feedback import generate_feedback
 from app.plagiarism import compute_source_hash, check_similarity
 from app.system_monitor import get_system_stats
+from app.ai_feedback import generate_ai_feedback
+
+limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(title="Ezitech Auto Evaluation Platform")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,9 +37,32 @@ app.add_middleware(
 
 init_db()
 
+# Declaring this as a proper security scheme is what makes Swagger UI show
+# the "Authorize" button and a lock icon on protected endpoints.
+bearer_scheme = HTTPBearer()
+
+
+def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> int:
+    payload = decode_access_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token. Please log in again.")
+    return payload.get("user_id")
+
 
 class EvaluateRequest(BaseModel):
     github_url: str
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    full_name: str = ""
+    role: str = "intern"
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -41,8 +75,66 @@ def serve_dashboard():
     raise HTTPException(status_code=404, detail="leaderboard.html was not found in the root directory")
 
 
+# ---- Authentication ----
+
+@app.post("/api/v1/auth/register")
+def register(payload: RegisterRequest):
+    db = SessionLocal()
+    try:
+        existing = db.query(User).filter(User.email == payload.email).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="An account with this email already exists.")
+
+        if len(payload.password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+
+        user = User(
+            email=payload.email,
+            hashed_password=hash_password(payload.password),
+            full_name=payload.full_name,
+            role=payload.role if payload.role in ("intern", "mentor") else "intern",
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        token = create_access_token({"user_id": user.id, "email": user.email, "role": user.role})
+        return {"status": "success", "token": token, "user": user.to_dict()}
+    finally:
+        db.close()
+
+
+@app.post("/api/v1/auth/login")
+def login(payload: LoginRequest):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == payload.email).first()
+        if not user or not verify_password(payload.password, user.hashed_password):
+            raise HTTPException(status_code=401, detail="Invalid email or password.")
+
+        token = create_access_token({"user_id": user.id, "email": user.email, "role": user.role})
+        return {"status": "success", "token": token, "user": user.to_dict()}
+    finally:
+        db.close()
+
+
+@app.get("/api/v1/auth/me")
+def get_me(user_id: int = Depends(get_current_user_id)):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user.to_dict()
+    finally:
+        db.close()
+
+
+# ---- Evaluation Pipeline (requires login — note the Depends() below) ----
+
 @app.post("/api/v1/evaluate")
-def evaluate_repo(payload: EvaluateRequest):
+@limiter.limit("5/minute")
+def evaluate_repo(request: Request, payload: EvaluateRequest, current_user_id: int = Depends(get_current_user_id)):
     db = SessionLocal()
     repo_path = None
 
@@ -58,10 +150,6 @@ def evaluate_repo(payload: EvaluateRequest):
         structure_checks = check_project_structure(repo_path, stack)
         test_results = run_test_suite(repo_path, stack)
 
-        # Real dynamic test execution — overrides the static "unit" detection
-        # above with an actual pytest/npm test run inside the container when
-        # the stack supports it (Python, MERN). See docker_executor.py for
-        # why Laravel/Flutter fall back to static detection instead.
         test_execution = run_real_tests(repo_path, stack)
 
         secrets_found = scan_for_exposed_secrets(repo_path)
@@ -90,11 +178,20 @@ def evaluate_repo(payload: EvaluateRequest):
                     note += "."
                 feedback["weaknesses"].insert(0, note)
 
-            # Recompute scores now that "unit" may have changed from real execution
             scores = calculate_scores(
                 structure_checks, test_results, secrets_found,
                 run_result["success"], run_result["build_time_seconds"]
             )
+
+        ai_result = generate_ai_feedback(
+            payload.github_url.rstrip("/").split("/")[-1],
+            stack, structure_checks, test_results, scores
+        )
+        if ai_result.get("available"):
+            feedback["strengths"] = ai_result["strengths"] + feedback["strengths"]
+            feedback["weaknesses"] = ai_result["weaknesses"] + feedback["weaknesses"]
+            if ai_result.get("roadmap"):
+                feedback["weaknesses"].append(f"Improvement roadmap: {ai_result['roadmap']}")
 
         source_hash = compute_source_hash(repo_path)
         existing_hashes = [row.source_hash for row in db.query(Evaluation.source_hash).all()]
@@ -105,6 +202,7 @@ def evaluate_repo(payload: EvaluateRequest):
         repo_name = payload.github_url.rstrip("/").split("/")[-1]
 
         record = Evaluation(
+            user_id=current_user_id,
             repo_name=repo_name,
             github_url=payload.github_url,
             stack=stack,
@@ -166,5 +264,6 @@ def get_report(evaluation_id: int):
 
 
 @app.get("/api/v1/system-stats")
-def system_stats():
+@limiter.limit("120/minute")
+def system_stats(request: Request):
     return get_system_stats()

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-gray-50">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
 
     <script>
         tailwind.config = {
@@ -16,24 +16,21 @@
                 extend: {
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
                         mono: ['Fira Code', 'monospace'],
                     },
                     colors: {
-                        brand: {
-                            bg: '#F8FAFC',
-                            card: '#FFFFFF',
-                            border: '#E2E8F0',
-                            primary: '#2563EB',
-                            primaryDark: '#1D4ED8',
-                            success: '#059669',
-                            danger: '#DC2626',
-                            warning: '#D97706',
-                            muted: '#64748B'
-                        }
+                        canvas: '#F4F5F7',
+                        surface: '#FFFFFF',
+                        line: '#E3E6EB',
+                        ink: { 900: '#12161F', 700: '#2B3242', 600: '#4B5468', 400: '#8B92A3', 300: '#B4BAC6' },
+                        accent: { 700: '#152B47', 600: '#1D3557', 500: '#27467A', 100: '#E7ECF4', 50: '#F2F5FA' },
+                        pass: { 600: '#0F9D6B', 100: '#E3F6EE' },
+                        warn: { 600: '#B76E1A', 100: '#FBF0DF' },
+                        fail: { 600: '#C0392B', 100: '#FBEAE8' },
                     },
                     boxShadow: {
-                        'card': '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-                        'card-hover': '0 6px 16px rgba(0,0,0,0.08)',
+                        'panel': '0 1px 2px rgba(18,22,31,0.04), 0 1px 0 rgba(18,22,31,0.03)',
                     }
                 }
             }
@@ -41,179 +38,289 @@
     </script>
 
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; overflow-x: hidden; }
-        .panel { background: #FFFFFF; border: 1px solid #E5E7EB; }
+        body { font-family: 'Inter', sans-serif; background-color: #F4F5F7; overflow-x: hidden; }
+        .panel { background: #FFFFFF; border: 1px solid #E3E6EB; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #F1F5F9; }
-        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 999px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+        ::-webkit-scrollbar-track { background: #F4F5F7; }
+        ::-webkit-scrollbar-thumb { background: #C7CCD6; border-radius: 999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #A6ACBA; }
 
-        .input-error { border-color: #DC2626 !important; background-color: #FEF2F2 !important; }
-        .input-error:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12); }
-        .input-valid { border-color: #059669 !important; background-color: #F0FDF4 !important; }
+        .input-error { border-color: #C0392B !important; background-color: #FBEAE8 !important; }
+        .input-error:focus { box-shadow: 0 0 0 3px rgba(192,57,43,0.10); }
+        .input-valid { border-color: #0F9D6B !important; background-color: #E3F6EE !important; }
 
-        .node-pulse { animation: pulse-glow 2s infinite alternate; }
-        @keyframes pulse-glow {
-            0% { filter: drop-shadow(0 0 1px rgba(37, 99, 235, 0.35)); }
-            100% { filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.55)); }
+        .check-pending { color: #8B92A3; }
+        .check-passed { color: #0F9D6B; }
+        .check-failed { color: #C0392B; }
+
+        .auth-tab-active { color: #1D3557; border-bottom: 2px solid #1D3557; }
+        .auth-tab-inactive { color: #B4BAC6; border-bottom: 2px solid transparent; }
+
+        .eyebrow { font-family: 'Fira Code', monospace; letter-spacing: 0.08em; }
+
+        .node-active { animation: node-glow 1.4s ease-in-out infinite alternate; }
+        @keyframes node-glow {
+            0% { filter: drop-shadow(0 0 0px rgba(29,53,87,0.0)); }
+            100% { filter: drop-shadow(0 0 5px rgba(29,53,87,0.45)); }
         }
 
-        .check-pending { color: #94A3B8; }
-        .check-passed { color: #059669; }
-        .check-failed { color: #DC2626; }
+        .blueprint-grid {
+            background-image:
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 28px 28px;
+        }
     </style>
 </head>
-<body class="h-full text-gray-800 flex flex-col antialiased">
+<body class="h-full text-ink-700 flex flex-col antialiased">
 
-    <div class="flex h-screen overflow-hidden">
+    <!-- ============ AUTH SCREEN ============ -->
+    <div id="auth-screen" class="fixed inset-0 z-50 bg-canvas flex items-stretch">
+        <!-- Left identity panel -->
+        <div class="hidden lg:flex lg:w-[42%] bg-accent-700 relative overflow-hidden flex-col justify-between p-12 blueprint-grid">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-md bg-white/10 border border-white/15 flex items-center justify-center">
+                    <i class="fa-solid fa-microchip-ai text-white text-base"></i>
+                </div>
+                <span class="text-white font-display font-semibold text-sm tracking-wide">Ezitech Auto</span>
+            </div>
 
-        <!-- Sidebar -->
-        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col justify-between shrink-0 z-40">
-            <div>
-                <div class="p-6 border-b border-gray-200 bg-gray-50">
-                    <div class="flex items-center gap-3">
-                        <div class="bg-blue-50 text-blue-600 p-2.5 rounded-xl border border-blue-100">
-                            <i class="fa-solid fa-microchip-ai text-xl"></i>
+            <div class="max-w-md">
+                <p class="eyebrow text-[11px] text-white/50 uppercase mb-4">Engineering Evaluation Console</p>
+                <h1 class="font-display text-3xl font-semibold text-white leading-tight mb-5">
+                    Every submission, reviewed the same way — automatically.
+                </h1>
+                <p class="text-sm text-white/60 leading-relaxed">
+                    Repositories are cloned into an isolated sandbox, executed under Docker, and scored across seven engineering dimensions — no manual setup, no inconsistent grading.
+                </p>
+            </div>
+
+            <div class="flex items-center gap-8 text-white/40 text-[11px] font-mono uppercase tracking-wide">
+                <span><i class="fa-solid fa-cube mr-1.5"></i> Isolated Sandbox</span>
+                <span><i class="fa-solid fa-shield-halved mr-1.5"></i> Security Audited</span>
+                <span><i class="fa-solid fa-chart-simple mr-1.5"></i> 7 Score Metrics</span>
+            </div>
+        </div>
+
+        <!-- Right form panel -->
+        <div class="flex-1 flex items-center justify-center p-6">
+            <div class="w-full max-w-sm">
+                <div class="lg:hidden text-center mb-8">
+                    <div class="inline-flex bg-accent-50 text-accent-600 p-3 rounded-lg border border-accent-100 mb-3">
+                        <i class="fa-solid fa-microchip-ai text-2xl"></i>
+                    </div>
+                    <h1 class="text-lg font-display font-semibold text-ink-900">Ezitech Auto</h1>
+                </div>
+
+                <div class="bg-surface rounded-lg border border-line shadow-panel overflow-hidden">
+                    <div class="flex border-b border-line">
+                        <button onclick="switchAuthTab('login')" id="auth-tab-login" class="flex-1 py-3.5 text-[11px] font-semibold uppercase tracking-wider auth-tab-active transition-all">
+                            Log In
+                        </button>
+                        <button onclick="switchAuthTab('register')" id="auth-tab-register" class="flex-1 py-3.5 text-[11px] font-semibold uppercase tracking-wider auth-tab-inactive transition-all">
+                            Sign Up
+                        </button>
+                    </div>
+
+                    <!-- Login Form -->
+                    <div id="auth-form-login" class="p-6 space-y-4">
+                        <div>
+                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-ink-400 mb-1.5">Email</label>
+                            <input type="email" id="login-email" placeholder="you@ezitech.com"
+                                   class="w-full bg-canvas border border-line rounded-md px-3.5 py-2.5 text-sm text-ink-900 focus:outline-none focus:border-accent-600 focus:ring-2 focus:ring-accent-100 transition-all placeholder:text-ink-300">
                         </div>
                         <div>
-                            <h1 class="font-black text-sm tracking-widest uppercase text-gray-900">Ezitech Auto</h1>
-                            <span class="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Engineering Sandbox v3.2</span>
+                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-ink-400 mb-1.5">Password</label>
+                            <input type="password" id="login-password" placeholder="••••••••"
+                                   class="w-full bg-canvas border border-line rounded-md px-3.5 py-2.5 text-sm text-ink-900 focus:outline-none focus:border-accent-600 focus:ring-2 focus:ring-accent-100 transition-all placeholder:text-ink-300">
+                        </div>
+                        <p id="login-error-msg" class="text-[11px] font-semibold text-fail-600 hidden"></p>
+                        <button onclick="handleLogin()" id="login-btn"
+                                class="w-full bg-accent-600 text-white font-semibold py-3 rounded-md hover:bg-accent-700 active:scale-[0.99] transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider disabled:opacity-60">
+                            <i class="fa-solid fa-right-to-bracket"></i> Log In
+                        </button>
+                    </div>
+
+                    <!-- Register Form -->
+                    <div id="auth-form-register" class="p-6 space-y-4 hidden">
+                        <div>
+                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-ink-400 mb-1.5">Full Name</label>
+                            <input type="text" id="register-name" placeholder="Your name"
+                                   class="w-full bg-canvas border border-line rounded-md px-3.5 py-2.5 text-sm text-ink-900 focus:outline-none focus:border-accent-600 focus:ring-2 focus:ring-accent-100 transition-all placeholder:text-ink-300">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-ink-400 mb-1.5">Email</label>
+                            <input type="email" id="register-email" placeholder="you@ezitech.com"
+                                   class="w-full bg-canvas border border-line rounded-md px-3.5 py-2.5 text-sm text-ink-900 focus:outline-none focus:border-accent-600 focus:ring-2 focus:ring-accent-100 transition-all placeholder:text-ink-300">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-ink-400 mb-1.5">Password</label>
+                            <input type="password" id="register-password" placeholder="At least 6 characters"
+                                   class="w-full bg-canvas border border-line rounded-md px-3.5 py-2.5 text-sm text-ink-900 focus:outline-none focus:border-accent-600 focus:ring-2 focus:ring-accent-100 transition-all placeholder:text-ink-300">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-ink-400 mb-1.5">Role</label>
+                            <select id="register-role" class="w-full bg-canvas border border-line rounded-md px-3.5 py-2.5 text-sm text-ink-900 focus:outline-none focus:border-accent-600">
+                                <option value="intern">Intern</option>
+                                <option value="mentor">Mentor</option>
+                            </select>
+                        </div>
+                        <p id="register-error-msg" class="text-[11px] font-semibold text-fail-600 hidden"></p>
+                        <button onclick="handleRegister()" id="register-btn"
+                                class="w-full bg-accent-600 text-white font-semibold py-3 rounded-md hover:bg-accent-700 active:scale-[0.99] transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider disabled:opacity-60">
+                            <i class="fa-solid fa-user-plus"></i> Create Account
+                        </button>
+                    </div>
+                </div>
+
+                <p class="text-center text-[11px] text-ink-400 mt-6">Only public GitHub repositories can be evaluated.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ MAIN APP ============ -->
+    <div id="main-app" class="hidden flex h-screen overflow-hidden">
+
+        <!-- Sidebar -->
+        <aside class="w-60 bg-surface border-r border-line flex flex-col justify-between shrink-0 z-40">
+            <div>
+                <div class="h-16 px-5 flex items-center border-b border-line">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-md bg-accent-600 flex items-center justify-center">
+                            <i class="fa-solid fa-microchip-ai text-white text-sm"></i>
+                        </div>
+                        <div>
+                            <h1 class="font-display font-semibold text-[13px] text-ink-900 leading-tight">Ezitech Auto</h1>
+                            <span class="eyebrow text-[9px] text-ink-400 uppercase">Sandbox v3.3</span>
                         </div>
                     </div>
                 </div>
 
-                <nav class="p-4 space-y-1.5">
-                    <button onclick="switchTab('dashboard')" id="btn-dashboard" class="nav-tab-btn w-full flex items-center gap-3 px-4 py-3 text-xs uppercase tracking-wider font-semibold rounded-xl text-blue-600 bg-blue-50 border-l-4 border-blue-600 transition-all">
-                        <i class="fa-solid fa-chart-line"></i> Control Room
+                <nav class="p-3 space-y-0.5 mt-2">
+                    <button onclick="switchTab('dashboard')" id="btn-dashboard" class="nav-tab-btn w-full flex items-center gap-2.5 px-3 py-2.5 text-[12px] font-medium rounded-md text-accent-600 bg-accent-50 border-l-2 border-accent-600 transition-all">
+                        <i class="fa-solid fa-chart-line w-4 text-center"></i> Control Room
                     </button>
-                    <button onclick="switchTab('pipeline')" id="btn-pipeline" class="nav-tab-btn w-full flex items-center gap-3 px-4 py-3 text-xs uppercase tracking-wider font-semibold rounded-xl text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-all">
-                        <i class="fa-solid fa-terminal"></i> Sandbox Executor
+                    <button onclick="switchTab('pipeline')" id="btn-pipeline" class="nav-tab-btn w-full flex items-center gap-2.5 px-3 py-2.5 text-[12px] font-medium rounded-md text-ink-400 hover:text-ink-700 hover:bg-canvas border-l-2 border-transparent transition-all">
+                        <i class="fa-solid fa-terminal w-4 text-center"></i> Sandbox Executor
                     </button>
-                    <button onclick="switchTab('reports')" id="btn-reports" class="nav-tab-btn w-full flex items-center gap-3 px-4 py-3 text-xs uppercase tracking-wider font-semibold rounded-xl text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-all">
-                        <i class="fa-solid fa-gauge-high"></i> Scorecard Insights
+                    <button onclick="switchTab('reports')" id="btn-reports" class="nav-tab-btn w-full flex items-center gap-2.5 px-3 py-2.5 text-[12px] font-medium rounded-md text-ink-400 hover:text-ink-700 hover:bg-canvas border-l-2 border-transparent transition-all">
+                        <i class="fa-solid fa-gauge-high w-4 text-center"></i> Scorecard Insights
                     </button>
-                    <button onclick="switchTab('leaderboard')" id="btn-leaderboard" class="nav-tab-btn w-full flex items-center gap-3 px-4 py-3 text-xs uppercase tracking-wider font-semibold rounded-xl text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-all">
-                        <i class="fa-solid fa-trophy"></i> Public Scoreboard
+                    <button onclick="switchTab('leaderboard')" id="btn-leaderboard" class="nav-tab-btn w-full flex items-center gap-2.5 px-3 py-2.5 text-[12px] font-medium rounded-md text-ink-400 hover:text-ink-700 hover:bg-canvas border-l-2 border-transparent transition-all">
+                        <i class="fa-solid fa-trophy w-4 text-center"></i> Public Scoreboard
                     </button>
-                    <button onclick="switchTab('telemetry')" id="btn-telemetry" class="nav-tab-btn w-full flex items-center gap-3 px-4 py-3 text-xs uppercase tracking-wider font-semibold rounded-xl text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-all">
-                        <i class="fa-solid fa-heart-pulse"></i> Monitoring &amp; Logging
+                    <button onclick="switchTab('telemetry')" id="btn-telemetry" class="nav-tab-btn w-full flex items-center gap-2.5 px-3 py-2.5 text-[12px] font-medium rounded-md text-ink-400 hover:text-ink-700 hover:bg-canvas border-l-2 border-transparent transition-all">
+                        <i class="fa-solid fa-heart-pulse w-4 text-center"></i> Monitoring &amp; Logging
                     </button>
                 </nav>
             </div>
 
-            <div class="p-4 border-t border-gray-200 bg-gray-50 text-xs space-y-3">
-                <div class="space-y-1 bg-white p-2.5 rounded-lg border border-gray-200">
-                    <div class="flex justify-between text-gray-500">
-                        <span>Environment</span>
-                        <span class="text-blue-600 font-bold flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> Live Node
-                        </span>
+            <div class="p-3 border-t border-line space-y-2">
+                <div class="flex items-center justify-between bg-canvas p-2.5 rounded-md border border-line">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <div class="w-7 h-7 rounded-md bg-accent-100 text-accent-600 flex items-center justify-center font-display font-semibold text-[10px] shrink-0" id="user-avatar">?</div>
+                        <div class="min-w-0">
+                            <div class="text-ink-900 font-semibold text-[11px] truncate" id="user-name-lbl">-</div>
+                            <div class="text-ink-400 text-[9px] uppercase font-mono" id="user-role-lbl">-</div>
+                        </div>
                     </div>
-                    <div class="flex justify-between text-gray-500">
-                        <span>DB Gateway</span>
-                        <span class="text-gray-700 font-semibold font-mono">SQLite-3</span>
-                    </div>
-                    <div class="flex justify-between text-gray-500">
-                        <span>Concurrency</span>
-                        <span class="text-emerald-600 font-semibold font-mono">20 Workers</span>
-                    </div>
-                    <div class="flex justify-between text-gray-500">
-                        <span>Last Sync</span>
-                        <span class="text-gray-700 font-semibold font-mono" id="last-sync-lbl">--:--:--</span>
-                    </div>
+                    <button onclick="handleLogout()" title="Log out" class="text-ink-300 hover:text-fail-600 transition-colors shrink-0 ml-2">
+                        <i class="fa-solid fa-right-from-bracket text-xs"></i>
+                    </button>
+                </div>
+                <div class="text-[10px] font-mono text-ink-400 space-y-1 px-1">
+                    <div class="flex justify-between"><span>ENV</span><span class="text-accent-600 font-semibold">LIVE</span></div>
+                    <div class="flex justify-between"><span>DB</span><span class="text-ink-600 font-semibold">SQLite-3</span></div>
+                    <div class="flex justify-between"><span>SYNC</span><span class="text-ink-600 font-semibold" id="last-sync-lbl">--:--:--</span></div>
                 </div>
             </div>
         </aside>
 
         <!-- Main Workspace -->
-        <main class="flex-1 flex flex-col overflow-y-auto bg-gray-50">
+        <main class="flex-1 flex flex-col overflow-y-auto bg-canvas">
             <div id="toast-container" class="fixed top-5 right-5 z-50 pointer-events-none space-y-2"></div>
 
-            <header class="h-16 border-b border-gray-200 bg-white/80 flex items-center justify-between px-8 sticky top-0 z-30 backdrop-blur-md">
-                <div class="flex items-center gap-4">
-                    <span class="text-xs bg-gray-100 border border-gray-200 px-3 py-1.5 rounded-full text-gray-500 font-mono flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> Enterprise AI Engineering Sandbox &amp; Auto Evaluation Platform
-                    </span>
+            <header class="h-16 border-b border-line bg-surface/90 flex items-center justify-between px-8 sticky top-0 z-30 backdrop-blur-md">
+                <div class="flex items-center gap-3">
+                    <span class="eyebrow text-[10px] text-ink-400 uppercase">Enterprise AI Engineering Sandbox &amp; Auto Evaluation Platform</span>
                 </div>
-                <div class="flex items-center gap-4 text-xs">
-                    <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-600 px-3 py-1.5 rounded-xl font-bold uppercase tracking-wider text-[10px]">
-                        <i class="fa-solid fa-circle-check"></i> System Stable
-                    </div>
+                <div class="flex items-center gap-2 bg-pass-100 text-pass-600 px-3 py-1.5 rounded-md font-semibold uppercase tracking-wider text-[10px]">
+                    <span class="w-1.5 h-1.5 rounded-full bg-pass-600"></span> System Stable
                 </div>
             </header>
 
-            <div class="p-8 flex-1 space-y-8">
+            <div class="p-8 flex-1 space-y-6">
 
                 <!-- Tab 1: Control Room -->
-                <div id="tab-dashboard" class="tab-pane space-y-8">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div class="panel p-6 rounded-2xl shadow-card relative overflow-hidden group hover:shadow-card-hover transition-all">
-                            <div class="absolute top-0 right-0 p-4 opacity-10 text-4xl"><i class="fa-solid fa-bolt text-blue-500"></i></div>
-                            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Total Evaluations</h3>
-                            <div class="flex items-baseline gap-2">
-                                <span class="text-4xl font-extrabold text-gray-900 font-mono" id="stat-evaluations">0</span>
+                <div id="tab-dashboard" class="tab-pane space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="panel p-5 rounded-lg shadow-panel">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="eyebrow text-[10px] font-semibold text-ink-400 uppercase">Total Evaluations</h3>
+                                <i class="fa-solid fa-bolt text-ink-300 text-xs"></i>
                             </div>
+                            <span class="text-3xl font-display font-semibold text-ink-900 font-mono" id="stat-evaluations">0</span>
                         </div>
-                        <div class="panel p-6 rounded-2xl shadow-card relative overflow-hidden group hover:shadow-card-hover transition-all">
-                            <div class="absolute top-0 right-0 p-4 opacity-10 text-4xl"><i class="fa-solid fa-bullseye text-emerald-500"></i></div>
-                            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Average Engineering Score</h3>
-                            <div class="flex items-baseline gap-2">
-                                <span class="text-4xl font-extrabold text-emerald-600 font-mono" id="stat-avg-score">0.00%</span>
+                        <div class="panel p-5 rounded-lg shadow-panel">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="eyebrow text-[10px] font-semibold text-ink-400 uppercase">Avg Engineering Score</h3>
+                                <i class="fa-solid fa-bullseye text-pass-600 text-xs"></i>
                             </div>
+                            <span class="text-3xl font-display font-semibold text-pass-600 font-mono" id="stat-avg-score">0.00%</span>
                         </div>
-                        <div class="panel p-6 rounded-2xl shadow-card relative overflow-hidden group hover:shadow-card-hover transition-all">
-                            <div class="absolute top-0 right-0 p-4 opacity-10 text-4xl"><i class="fa-solid fa-shield text-indigo-500"></i></div>
-                            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Security Audits Passed</h3>
-                            <div class="flex items-baseline gap-2">
-                                <span class="text-4xl font-extrabold text-indigo-600 font-mono" id="stat-security">100%</span>
+                        <div class="panel p-5 rounded-lg shadow-panel">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="eyebrow text-[10px] font-semibold text-ink-400 uppercase">Security Audits Passed</h3>
+                                <i class="fa-solid fa-shield text-accent-600 text-xs"></i>
                             </div>
+                            <span class="text-3xl font-display font-semibold text-accent-600 font-mono" id="stat-security">100%</span>
                         </div>
-                        <div class="panel p-6 rounded-2xl shadow-card relative overflow-hidden group hover:shadow-card-hover transition-all">
-                            <div class="absolute top-0 right-0 p-4 opacity-10 text-4xl"><i class="fa-solid fa-cubes text-amber-500"></i></div>
-                            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Active Sandbox Workers</h3>
-                            <div class="flex items-baseline gap-2">
-                                <span class="text-4xl font-extrabold text-amber-500 font-mono" id="stat-workers">04 / 20</span>
+                        <div class="panel p-5 rounded-lg shadow-panel">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="eyebrow text-[10px] font-semibold text-ink-400 uppercase">Active Sandbox Workers</h3>
+                                <i class="fa-solid fa-cubes text-warn-600 text-xs"></i>
                             </div>
+                            <span class="text-3xl font-display font-semibold text-warn-600 font-mono" id="stat-workers">04 / 20</span>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div class="lg:col-span-1 bg-white p-6 rounded-2xl border border-gray-200 shadow-card space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1 bg-surface p-6 rounded-lg border border-line shadow-panel space-y-5">
                             <div>
-                                <h2 class="text-base font-bold text-gray-900 mb-1">
-                                    <i class="fa-brands fa-github text-gray-800 mr-2"></i> Submit GitHub Repository
+                                <h2 class="text-sm font-display font-semibold text-ink-900 mb-1 flex items-center gap-2">
+                                    <i class="fa-brands fa-github text-ink-700"></i> Submit GitHub Repository
                                 </h2>
-                                <p class="text-xs text-gray-500">Only a valid, public GitHub repository is accepted. The link is verified live against GitHub before evaluation starts.</p>
+                                <p class="text-xs text-ink-400 leading-relaxed">Only a valid, public repository is accepted. The link is verified live against GitHub before evaluation starts.</p>
                             </div>
 
-                            <div class="space-y-4">
+                            <div class="space-y-3">
                                 <div>
-                                    <label class="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">GitHub Repository URL</label>
+                                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-ink-400 mb-1.5">GitHub Repository URL</label>
                                     <input type="text" id="targetUrl" placeholder="https://github.com/username/repository"
                                            oninput="clearUrlValidationState()"
-                                           class="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-gray-400 font-mono">
-                                    <p class="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
+                                           class="w-full bg-canvas border border-line rounded-md px-3.5 py-2.5 text-sm text-ink-900 focus:outline-none focus:border-accent-600 focus:ring-2 focus:ring-accent-100 transition-all placeholder:text-ink-300 font-mono">
+                                    <p class="text-[10px] text-ink-400 mt-1.5 flex items-center gap-1">
                                         <i class="fa-solid fa-circle-info"></i> Format: https://github.com/owner/repo
                                     </p>
-                                    <p id="url-validation-msg" class="text-[10px] font-bold mt-1 hidden"></p>
+                                    <p id="url-validation-msg" class="text-[10px] font-semibold mt-1 hidden"></p>
                                 </div>
 
                                 <button onclick="triggerEvaluationPipeline()" id="run-pipeline-btn"
-                                        class="w-full bg-blue-600 text-white font-extrabold py-3.5 rounded-xl hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-600/15 flex items-center justify-center gap-2 text-xs uppercase tracking-widest disabled:opacity-60 disabled:cursor-not-allowed">
+                                        class="w-full bg-accent-600 text-white font-semibold py-3 rounded-md hover:bg-accent-700 active:scale-[0.99] transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider disabled:opacity-60 disabled:cursor-not-allowed">
                                     <i class="fa-solid fa-terminal"></i> Start Evaluation
                                 </button>
                             </div>
                         </div>
 
-                        <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-200 shadow-card flex flex-col justify-between">
-                            <div class="flex justify-between items-start mb-4">
+                        <div class="lg:col-span-2 bg-surface p-6 rounded-lg border border-line shadow-panel flex flex-col justify-between">
+                            <div class="flex justify-between items-start mb-2">
                                 <div>
-                                    <h3 class="text-base font-bold text-gray-900"><i class="fa-solid fa-compass text-blue-500 mr-2"></i> Engineering Analysis Diagnostics</h3>
-                                    <p class="text-xs text-gray-500 font-medium">Comparing the top-ranked candidates across all 7 engineering score dimensions</p>
+                                    <h3 class="text-sm font-display font-semibold text-ink-900 flex items-center gap-2"><i class="fa-solid fa-compass text-accent-600"></i> Engineering Analysis Diagnostics</h3>
+                                    <p class="text-xs text-ink-400 mt-0.5">Top-ranked candidates across all 7 engineering score dimensions</p>
                                 </div>
-                                <span class="bg-gray-100 border border-gray-200 px-3 py-1 rounded-full text-[10px] font-mono text-gray-600 font-semibold">Live Dataset</span>
+                                <span class="eyebrow bg-canvas border border-line px-2.5 py-1 rounded text-[9px] text-ink-400 uppercase">Live</span>
                             </div>
-                            <div class="relative flex-1 h-72">
+                            <div class="relative flex-1 h-64">
                                 <canvas id="dashboardRadar"></canvas>
                             </div>
                         </div>
@@ -221,72 +328,72 @@
                 </div>
 
                 <!-- Tab 2: Sandbox Executor -->
-                <div id="tab-pipeline" class="tab-pane space-y-8 hidden">
+                <div id="tab-pipeline" class="tab-pane space-y-6 hidden">
 
-                    <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-card space-y-4">
+                    <div class="bg-surface p-6 rounded-lg border border-line shadow-panel space-y-4">
                         <div>
-                            <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wider"><i class="fa-solid fa-network-wired text-blue-500 mr-1.5"></i> Sandbox Execution Pipeline</h3>
-                            <p class="text-xs text-gray-500">Clone, build, launch, test, and audit — executed inside an isolated container, then destroyed on completion.</p>
+                            <h3 class="text-sm font-display font-semibold text-ink-900 flex items-center gap-2"><i class="fa-solid fa-network-wired text-accent-600"></i> Sandbox Execution Pipeline</h3>
+                            <p class="text-xs text-ink-400 mt-0.5">Clone, build, launch, test, and audit — executed inside an isolated container, then destroyed on completion.</p>
                         </div>
 
-                        <div class="w-full bg-gray-50 p-4 rounded-xl border border-gray-200 overflow-x-auto">
-                            <svg id="pipeline-svg" class="mx-auto min-w-[700px] h-32" viewBox="0 0 1000 120">
-                                <line x1="100" y1="60" x2="260" y2="60" stroke="#CBD5E1" stroke-width="3" id="line-1"/>
-                                <line x1="280" y1="60" x2="440" y2="60" stroke="#CBD5E1" stroke-width="3" id="line-2"/>
-                                <line x1="460" y1="60" x2="620" y2="60" stroke="#CBD5E1" stroke-width="3" id="line-3"/>
-                                <line x1="640" y1="60" x2="800" y2="60" stroke="#CBD5E1" stroke-width="3" id="line-4"/>
-                                <line x1="820" y1="60" x2="920" y2="60" stroke="#CBD5E1" stroke-width="3" id="line-5"/>
+                        <div class="w-full bg-canvas p-4 rounded-md border border-line overflow-x-auto">
+                            <svg id="pipeline-svg" class="mx-auto min-w-[720px] h-28" viewBox="0 0 1000 110">
+                                <line x1="108" y1="50" x2="252" y2="50" stroke="#D6DAE1" stroke-width="2" id="line-1"/>
+                                <line x1="288" y1="50" x2="432" y2="50" stroke="#D6DAE1" stroke-width="2" id="line-2"/>
+                                <line x1="468" y1="50" x2="612" y2="50" stroke="#D6DAE1" stroke-width="2" id="line-3"/>
+                                <line x1="648" y1="50" x2="792" y2="50" stroke="#D6DAE1" stroke-width="2" id="line-4"/>
+                                <line x1="828" y1="50" x2="928" y2="50" stroke="#D6DAE1" stroke-width="2" id="line-5"/>
 
-                                <circle cx="80" cy="60" r="16" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3" id="node-0"/>
-                                <text x="80" y="95" fill="#64748B" font-size="9" font-family="monospace" font-weight="bold" text-anchor="middle">1. CLONE REPO</text>
+                                <rect x="66" y="34" width="32" height="32" rx="4" fill="#FFFFFF" stroke="#D6DAE1" stroke-width="2" id="node-0"/>
+                                <text x="82" y="94" fill="#8B92A3" font-size="9" font-family="'Fira Code',monospace" font-weight="600" text-anchor="middle">01 CLONE</text>
 
-                                <circle cx="260" cy="60" r="16" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3" id="node-1"/>
-                                <text x="260" y="95" fill="#64748B" font-size="9" font-family="monospace" font-weight="bold" text-anchor="middle">2. BUILD &amp; DEPS</text>
+                                <rect x="246" y="34" width="32" height="32" rx="4" fill="#FFFFFF" stroke="#D6DAE1" stroke-width="2" id="node-1"/>
+                                <text x="262" y="94" fill="#8B92A3" font-size="9" font-family="'Fira Code',monospace" font-weight="600" text-anchor="middle">02 BUILD</text>
 
-                                <circle cx="440" cy="60" r="16" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3" id="node-2"/>
-                                <text x="440" y="95" fill="#64748B" font-size="9" font-family="monospace" font-weight="bold" text-anchor="middle">3. LAUNCH CONTAINERS</text>
+                                <rect x="426" y="34" width="32" height="32" rx="4" fill="#FFFFFF" stroke="#D6DAE1" stroke-width="2" id="node-2"/>
+                                <text x="442" y="94" fill="#8B92A3" font-size="9" font-family="'Fira Code',monospace" font-weight="600" text-anchor="middle">03 LAUNCH</text>
 
-                                <circle cx="620" cy="60" r="16" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3" id="node-3"/>
-                                <text x="620" y="95" fill="#64748B" font-size="9" font-family="monospace" font-weight="bold" text-anchor="middle">4. RUN TEST SUITE</text>
+                                <rect x="606" y="34" width="32" height="32" rx="4" fill="#FFFFFF" stroke="#D6DAE1" stroke-width="2" id="node-3"/>
+                                <text x="622" y="94" fill="#8B92A3" font-size="9" font-family="'Fira Code',monospace" font-weight="600" text-anchor="middle">04 TEST</text>
 
-                                <circle cx="800" cy="60" r="16" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3" id="node-4"/>
-                                <text x="800" y="95" fill="#64748B" font-size="9" font-family="monospace" font-weight="bold" text-anchor="middle">5. SECURITY AUDIT</text>
+                                <rect x="786" y="34" width="32" height="32" rx="4" fill="#FFFFFF" stroke="#D6DAE1" stroke-width="2" id="node-4"/>
+                                <text x="802" y="94" fill="#8B92A3" font-size="9" font-family="'Fira Code',monospace" font-weight="600" text-anchor="middle">05 AUDIT</text>
 
-                                <circle cx="920" cy="60" r="16" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3" id="node-5"/>
-                                <text x="920" y="95" fill="#64748B" font-size="9" font-family="monospace" font-weight="bold" text-anchor="middle">6. GENERATE REPORT</text>
+                                <rect x="912" y="34" width="32" height="32" rx="4" fill="#FFFFFF" stroke="#D6DAE1" stroke-width="2" id="node-5"/>
+                                <text x="928" y="94" fill="#8B92A3" font-size="9" font-family="'Fira Code',monospace" font-weight="600" text-anchor="middle">06 REPORT</text>
                             </svg>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 xl:grid-cols-12 gap-8">
+                    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
 
-                        <div class="xl:col-span-6 flex flex-col space-y-4">
-                            <div class="flex justify-between items-center bg-white px-6 py-4 rounded-t-2xl border-t border-x border-gray-200">
+                        <div class="xl:col-span-6 flex flex-col">
+                            <div class="flex justify-between items-center bg-ink-900 px-5 py-3 rounded-t-lg border border-b-0 border-ink-900">
                                 <div class="flex items-center gap-2">
-                                    <span class="w-3 h-3 rounded-full bg-rose-400"></span>
-                                    <span class="w-3 h-3 rounded-full bg-amber-400"></span>
-                                    <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
-                                    <span class="text-xs font-mono text-gray-500 ml-4 font-bold">Sandbox Container Console</span>
+                                    <span class="w-2.5 h-2.5 rounded-full bg-fail-600"></span>
+                                    <span class="w-2.5 h-2.5 rounded-full bg-warn-600"></span>
+                                    <span class="w-2.5 h-2.5 rounded-full bg-pass-600"></span>
+                                    <span class="text-[11px] font-mono text-ink-300 ml-3 font-semibold">sandbox-console</span>
                                 </div>
-                                <div id="pipeline-status-badge" class="bg-gray-100 text-gray-500 text-[9px] font-bold font-mono px-3 py-1 rounded-full border border-gray-200 uppercase tracking-wider">
+                                <div id="pipeline-status-badge" class="bg-white/5 text-ink-300 text-[9px] font-mono font-semibold px-2.5 py-1 rounded border border-white/10 uppercase tracking-wider">
                                     Awaiting Trigger
                                 </div>
                             </div>
-                            <div class="flex-1 bg-gray-900 p-6 rounded-b-2xl border-b border-x border-gray-200 font-mono text-xs text-gray-200 h-[380px] overflow-y-auto space-y-2" id="terminal-screen">
-                                <p class="text-gray-500">&gt; Sandbox engine ready.</p>
-                                <p class="text-gray-500">&gt; Enter a verified GitHub repository to begin evaluation.</p>
+                            <div class="flex-1 bg-ink-900 p-5 rounded-b-lg border border-t-0 border-ink-900 font-mono text-[11px] text-ink-300 h-[380px] overflow-y-auto space-y-1.5" id="terminal-screen">
+                                <p class="text-ink-400">&gt; Sandbox engine ready.</p>
+                                <p class="text-ink-400">&gt; Enter a verified GitHub repository to begin evaluation.</p>
                             </div>
                         </div>
 
-                        <div class="xl:col-span-6 flex flex-col bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-card">
-                            <div class="flex items-center justify-between bg-gray-50 border-b border-gray-200 px-6 py-4">
+                        <div class="xl:col-span-6 flex flex-col bg-surface rounded-lg border border-line overflow-hidden shadow-panel">
+                            <div class="flex items-center justify-between bg-canvas border-b border-line px-5 py-3.5">
                                 <div class="flex items-center gap-2">
-                                    <i class="fa-solid fa-list-check text-blue-500"></i>
-                                    <span class="text-xs font-bold text-gray-800 uppercase tracking-widest">AI Engineering Validation Checklist</span>
+                                    <i class="fa-solid fa-list-check text-accent-600 text-xs"></i>
+                                    <span class="text-[11px] font-semibold text-ink-700 uppercase tracking-wide">AI Engineering Validation Checklist</span>
                                 </div>
-                                <span class="text-[9px] bg-indigo-50 border border-indigo-200 text-indigo-600 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">Live</span>
+                                <span class="eyebrow text-[9px] bg-accent-50 border border-accent-100 text-accent-600 px-2 py-0.5 rounded uppercase">Live</span>
                             </div>
-                            <div class="p-6 space-y-3" id="validation-checklist">
+                            <div class="p-5 space-y-2.5" id="validation-checklist">
                                 <!-- populated by JS -->
                             </div>
                         </div>
@@ -294,87 +401,87 @@
                 </div>
 
                 <!-- Tab 3: Scorecard Insights -->
-                <div id="tab-reports" class="tab-pane space-y-8 hidden">
-                    <div id="report-empty-state" class="panel p-16 rounded-2xl shadow-card text-center space-y-4">
-                        <i class="fa-solid fa-folder-open text-5xl text-gray-300"></i>
-                        <h3 class="text-lg font-bold text-gray-600">No Assessment Record Loaded</h3>
-                        <p class="text-xs text-gray-400 max-w-md mx-auto">Run an evaluation, or click Inspect on a scorecard in the Public Scoreboard, to load a detailed report here.</p>
+                <div id="tab-reports" class="tab-pane space-y-6 hidden">
+                    <div id="report-empty-state" class="panel p-16 rounded-lg shadow-panel text-center space-y-3">
+                        <i class="fa-solid fa-folder-open text-4xl text-ink-300"></i>
+                        <h3 class="text-sm font-display font-semibold text-ink-600">No Assessment Record Loaded</h3>
+                        <p class="text-xs text-ink-400 max-w-md mx-auto">Run an evaluation, or click Inspect on a scorecard in the Public Scoreboard, to load a detailed report here.</p>
                     </div>
 
-                    <div id="report-active-container" class="space-y-8 hidden">
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div class="panel p-6 rounded-2xl shadow-card space-y-4">
-                                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Repository Details</h3>
+                    <div id="report-active-container" class="space-y-6 hidden">
+                        <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+                            <div class="panel p-5 rounded-lg shadow-panel space-y-4">
+                                <h3 class="eyebrow text-[10px] font-semibold text-ink-400 uppercase">Repository Details</h3>
                                 <div>
-                                    <div class="text-xl font-extrabold text-gray-900" id="report-repo-name">-</div>
-                                    <a href="#" target="_blank" class="text-xs text-blue-600 hover:underline inline-block mt-1.5 font-mono break-all" id="report-repo-url">-</a>
+                                    <div class="text-lg font-display font-semibold text-ink-900" id="report-repo-name">-</div>
+                                    <a href="#" target="_blank" class="text-xs text-accent-600 hover:underline inline-block mt-1 font-mono break-all" id="report-repo-url">-</a>
                                 </div>
-                                <div class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+                                <div class="grid grid-cols-2 gap-4 pt-3 border-t border-line">
                                     <div>
-                                        <span class="block text-gray-400 text-[10px] uppercase font-bold">Grade</span>
-                                        <span class="text-2xl font-black text-blue-600" id="report-grade">-</span>
+                                        <span class="block text-ink-400 text-[9px] uppercase font-semibold mb-0.5">Grade</span>
+                                        <span class="text-xl font-display font-bold text-accent-600" id="report-grade">-</span>
                                     </div>
                                     <div>
-                                        <span class="block text-gray-400 text-[10px] uppercase font-bold">Overall Score</span>
-                                        <span class="text-2xl font-black text-emerald-600" id="report-overall">-</span>
+                                        <span class="block text-ink-400 text-[9px] uppercase font-semibold mb-0.5">Overall Score</span>
+                                        <span class="text-xl font-display font-bold text-pass-600" id="report-overall">-</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="panel p-6 rounded-2xl shadow-card space-y-4">
-                                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Automated Testing Engine</h3>
-                                <div class="grid grid-cols-2 gap-y-3.5 gap-x-4 text-xs font-medium">
-                                    <div class="flex items-center justify-between border-b border-gray-100 pb-1">
-                                        <span class="text-gray-500">API Tests:</span>
-                                        <span class="text-emerald-600 font-bold font-mono" id="chk-api">Passed</span>
+                            <div class="panel p-5 rounded-lg shadow-panel space-y-3.5">
+                                <h3 class="eyebrow text-[10px] font-semibold text-ink-400 uppercase">Automated Testing Engine</h3>
+                                <div class="space-y-2 text-[11px] font-medium">
+                                    <div class="flex items-center justify-between gap-3 border-b border-line pb-2">
+                                        <span class="text-ink-600 shrink-0">API Tests</span>
+                                        <span class="font-mono font-bold shrink-0 px-2 py-0.5 rounded text-[9px] bg-canvas border border-line" id="chk-api">Passed</span>
                                     </div>
-                                    <div class="flex items-center justify-between border-b border-gray-100 pb-1">
-                                        <span class="text-gray-500">Unit Tests:</span>
-                                        <span class="text-emerald-600 font-bold font-mono" id="chk-unit">Passed</span>
+                                    <div class="flex items-center justify-between gap-3 border-b border-line pb-2">
+                                        <span class="text-ink-600 shrink-0">Unit Tests</span>
+                                        <span class="font-mono font-bold shrink-0 px-2 py-0.5 rounded text-[9px] bg-canvas border border-line" id="chk-unit">Passed</span>
                                     </div>
-                                    <div class="flex items-center justify-between border-b border-gray-100 pb-1">
-                                        <span class="text-gray-500">Database Tests:</span>
-                                        <span class="text-emerald-600 font-bold font-mono" id="chk-db">Passed</span>
+                                    <div class="flex items-center justify-between gap-3 border-b border-line pb-2">
+                                        <span class="text-ink-600 shrink-0">Database Tests</span>
+                                        <span class="font-mono font-bold shrink-0 px-2 py-0.5 rounded text-[9px] bg-canvas border border-line" id="chk-db">Passed</span>
                                     </div>
-                                    <div class="flex items-center justify-between border-b border-gray-100 pb-1">
-                                        <span class="text-gray-500">Integration Tests:</span>
-                                        <span class="text-emerald-600 font-bold font-mono" id="chk-integration">Passed</span>
+                                    <div class="flex items-center justify-between gap-3 border-b border-line pb-2">
+                                        <span class="text-ink-600 shrink-0">Integration Tests</span>
+                                        <span class="font-mono font-bold shrink-0 px-2 py-0.5 rounded text-[9px] bg-canvas border border-line" id="chk-integration">Passed</span>
                                     </div>
-                                    <div class="flex items-center justify-between border-b border-gray-100 pb-1">
-                                        <span class="text-gray-500">UI Smoke Tests:</span>
-                                        <span class="text-emerald-600 font-bold font-mono" id="chk-uismoke">Passed</span>
+                                    <div class="flex items-center justify-between gap-3 border-b border-line pb-2">
+                                        <span class="text-ink-600 shrink-0">UI Smoke Tests</span>
+                                        <span class="font-mono font-bold shrink-0 px-2 py-0.5 rounded text-[9px] bg-canvas border border-line" id="chk-uismoke">Passed</span>
                                     </div>
-                                    <div class="flex items-center justify-between border-b border-gray-100 pb-1">
-                                        <span class="text-gray-500">Performance Checks:</span>
-                                        <span class="text-emerald-600 font-bold font-mono" id="chk-performance">Passed</span>
+                                    <div class="flex items-center justify-between gap-3">
+                                        <span class="text-ink-600 shrink-0">Performance Checks</span>
+                                        <span class="font-mono font-bold shrink-0 px-2 py-0.5 rounded text-[9px] bg-canvas border border-line" id="chk-performance">Passed</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="panel p-4 rounded-2xl shadow-card">
-                                <div class="relative h-48 w-full">
+                            <div class="panel p-4 rounded-lg shadow-panel">
+                                <div class="relative h-64 w-full">
                                     <canvas id="radarScorechart"></canvas>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                            <div class="lg:col-span-5 bg-white p-6 rounded-2xl border border-gray-200 shadow-card space-y-4">
-                                <h3 class="text-xs font-bold text-blue-600 uppercase tracking-wider"><i class="fa-solid fa-chart-simple text-blue-500 mr-2"></i> AI Engineering Analysis Scores</h3>
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            <div class="lg:col-span-5 bg-surface p-6 rounded-lg border border-line shadow-panel space-y-4">
+                                <h3 class="eyebrow text-[10px] font-semibold text-accent-600 uppercase flex items-center gap-2"><i class="fa-solid fa-chart-simple"></i> AI Engineering Analysis Scores</h3>
                                 <div class="space-y-3" id="score-bars-container">
                                     <!-- populated by JS -->
                                 </div>
                             </div>
 
-                            <div class="lg:col-span-7 grid grid-cols-1 gap-6">
-                                <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-card space-y-4">
-                                    <h3 class="text-xs font-bold text-emerald-600 uppercase tracking-wider"><i class="fa-solid fa-award mr-2"></i> Engineering Strengths</h3>
-                                    <ul class="space-y-2.5 text-xs text-gray-600 font-medium" id="feedback-strengths"></ul>
+                            <div class="lg:col-span-7 grid grid-cols-1 gap-5">
+                                <div class="bg-surface p-6 rounded-lg border border-line shadow-panel space-y-3">
+                                    <h3 class="eyebrow text-[10px] font-semibold text-pass-600 uppercase flex items-center gap-2"><i class="fa-solid fa-award"></i> Engineering Strengths</h3>
+                                    <ul class="space-y-2 text-xs text-ink-600 font-medium" id="feedback-strengths"></ul>
                                 </div>
 
-                                <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-card space-y-4">
-                                    <h3 class="text-xs font-bold text-rose-600 uppercase tracking-wider"><i class="fa-solid fa-triangle-exclamation mr-2"></i> Improvement &amp; Risk Areas</h3>
-                                    <ul class="space-y-2.5 text-xs text-gray-600 font-medium" id="feedback-weaknesses"></ul>
+                                <div class="bg-surface p-6 rounded-lg border border-line shadow-panel space-y-3">
+                                    <h3 class="eyebrow text-[10px] font-semibold text-fail-600 uppercase flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation"></i> Improvement &amp; Risk Areas</h3>
+                                    <ul class="space-y-2 text-xs text-ink-600 font-medium" id="feedback-weaknesses"></ul>
                                 </div>
                             </div>
                         </div>
@@ -382,21 +489,21 @@
                 </div>
 
                 <!-- Tab 4: Public Scoreboard -->
-                <div id="tab-leaderboard" class="tab-pane space-y-8 hidden">
+                <div id="tab-leaderboard" class="tab-pane space-y-6 hidden">
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4" id="category-leaders-row">
+                    <div class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3" id="category-leaders-row">
                         <!-- populated by JS -->
                     </div>
 
-                    <div class="bg-white rounded-2xl border border-gray-200 shadow-card overflow-hidden">
-                        <div class="p-6 border-b border-gray-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-gray-50">
+                    <div class="bg-surface rounded-lg border border-line shadow-panel overflow-hidden">
+                        <div class="p-5 border-b border-line flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-canvas">
                             <div>
-                                <h2 class="text-lg font-extrabold text-gray-900"><i class="fa-solid fa-trophy text-blue-500 mr-2"></i> Public Engineering Scoreboard</h2>
-                                <p class="text-xs text-gray-500 font-medium">All submissions ranked by overall engineering score, evaluated identically.</p>
+                                <h2 class="text-sm font-display font-semibold text-ink-900 flex items-center gap-2"><i class="fa-solid fa-trophy text-accent-600"></i> Public Engineering Scoreboard</h2>
+                                <p class="text-xs text-ink-400 mt-0.5">All submissions ranked by overall engineering score, evaluated identically.</p>
                             </div>
 
-                            <div class="flex flex-wrap items-center gap-3">
-                                <select id="lead-tech" onchange="filterLeaderboard()" class="bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-gray-700 focus:outline-none focus:border-blue-500 font-semibold cursor-pointer">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <select id="lead-tech" onchange="filterLeaderboard()" class="bg-surface border border-line rounded-md px-3 py-2 text-xs text-ink-700 focus:outline-none focus:border-accent-600 font-medium cursor-pointer">
                                     <option value="all">All Tech Stacks</option>
                                     <option value="Laravel">Laravel API</option>
                                     <option value="MERN">MERN Fullstack</option>
@@ -405,11 +512,11 @@
                                     <option value="Unknown">Unclassified</option>
                                 </select>
 
-                                <div class="flex gap-1 bg-white p-1 rounded-xl border border-gray-300">
-                                    <button onclick="exportLeaderboardData('json')" class="px-3 py-1.5 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 text-xs font-bold font-mono flex items-center gap-1 transition-all">
+                                <div class="flex gap-1 bg-surface p-1 rounded-md border border-line">
+                                    <button onclick="exportLeaderboardData('json')" class="px-2.5 py-1.5 rounded text-ink-500 hover:text-ink-800 hover:bg-canvas text-[11px] font-semibold font-mono flex items-center gap-1 transition-all">
                                         <i class="fa-solid fa-file-code"></i> JSON
                                     </button>
-                                    <button onclick="exportLeaderboardData('csv')" class="px-3 py-1.5 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 text-xs font-bold font-mono flex items-center gap-1 transition-all">
+                                    <button onclick="exportLeaderboardData('csv')" class="px-2.5 py-1.5 rounded text-ink-500 hover:text-ink-800 hover:bg-canvas text-[11px] font-semibold font-mono flex items-center gap-1 transition-all">
                                         <i class="fa-solid fa-file-csv"></i> CSV
                                     </button>
                                 </div>
@@ -418,86 +525,86 @@
 
                         <div class="overflow-x-auto">
                             <table class="w-full text-left">
-                                <thead class="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider font-bold border-b border-gray-200">
+                                <thead class="bg-canvas text-ink-400 text-[10px] uppercase tracking-wider font-semibold border-b border-line">
                                     <tr>
-                                        <th class="py-4 px-6 text-center">Rank</th>
-                                        <th class="py-4 px-6">Repository</th>
-                                        <th class="py-4 px-4 text-center">Stack</th>
-                                        <th class="py-4 px-4 text-center">Architecture</th>
-                                        <th class="py-4 px-4 text-center">Security</th>
-                                        <th class="py-4 px-4 text-center">Build Time</th>
-                                        <th class="py-4 px-4 text-center">Overall Score</th>
-                                        <th class="py-4 px-4 text-center">Grade</th>
-                                        <th class="py-4 px-6 text-center">Actions</th>
+                                        <th class="py-3 px-5 text-center">Rank</th>
+                                        <th class="py-3 px-5">Repository</th>
+                                        <th class="py-3 px-3 text-center">Stack</th>
+                                        <th class="py-3 px-3 text-center">Architecture</th>
+                                        <th class="py-3 px-3 text-center">Security</th>
+                                        <th class="py-3 px-3 text-center">Build Time</th>
+                                        <th class="py-3 px-3 text-center">Overall Score</th>
+                                        <th class="py-3 px-3 text-center">Grade</th>
+                                        <th class="py-3 px-5 text-center">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody id="leaderboard-table-body" class="divide-y divide-gray-100 text-xs font-medium"></tbody>
+                                <tbody id="leaderboard-table-body" class="divide-y divide-line text-[11px] font-medium"></tbody>
                             </table>
                         </div>
                     </div>
                 </div>
 
                 <!-- Tab 5: Monitoring & Logging -->
-                <div id="tab-telemetry" class="tab-pane space-y-8 hidden">
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div id="tab-telemetry" class="tab-pane space-y-6 hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                        <div class="bg-white p-6 rounded-2xl border border-gray-200 space-y-6 shadow-card relative">
+                        <div class="bg-surface p-6 rounded-lg border border-line shadow-panel space-y-5">
                             <div>
-                                <h3 class="text-base font-bold text-gray-900 mb-1"><i class="fa-solid fa-cube text-blue-500 mr-2"></i> Container Resource Monitoring</h3>
-                                <p class="text-xs text-gray-500">Live resource utilization of the sandbox host, sampled every second from the system's real CPU/RAM/Network counters.</p>
+                                <h3 class="text-sm font-display font-semibold text-ink-900 flex items-center gap-2"><i class="fa-solid fa-cube text-accent-600"></i> Container Resource Monitoring</h3>
+                                <p class="text-xs text-ink-400 mt-0.5">Live host resource utilization, sampled every second from real CPU/RAM/Network counters.</p>
                             </div>
-                            <div class="relative h-64 bg-gray-50 rounded-xl border border-gray-200 p-4">
+                            <div class="relative h-56 bg-canvas rounded-md border border-line p-4">
                                 <canvas id="telemetryLineChart"></canvas>
                             </div>
-                            <div class="grid grid-cols-3 gap-4 text-center">
-                                <div class="bg-gray-50 p-3 rounded-xl border border-gray-200">
-                                    <span class="block text-[10px] font-mono text-gray-400 font-bold uppercase">CPU Usage</span>
-                                    <span class="text-lg font-black text-blue-600 font-mono" id="cpu-lbl">0%</span>
+                            <div class="grid grid-cols-3 gap-3 text-center">
+                                <div class="bg-canvas p-3 rounded-md border border-line">
+                                    <span class="block text-[9px] font-mono text-ink-400 font-semibold uppercase">CPU Usage</span>
+                                    <span class="text-base font-display font-bold text-accent-600 font-mono" id="cpu-lbl">0%</span>
                                 </div>
-                                <div class="bg-gray-50 p-3 rounded-xl border border-gray-200">
-                                    <span class="block text-[10px] font-mono text-gray-400 font-bold uppercase">RAM Usage</span>
-                                    <span class="text-lg font-black text-emerald-600 font-mono" id="ram-lbl">0 MB</span>
+                                <div class="bg-canvas p-3 rounded-md border border-line">
+                                    <span class="block text-[9px] font-mono text-ink-400 font-semibold uppercase">RAM Usage</span>
+                                    <span class="text-base font-display font-bold text-pass-600 font-mono" id="ram-lbl">0 MB</span>
                                 </div>
-                                <div class="bg-gray-50 p-3 rounded-xl border border-gray-200">
-                                    <span class="block text-[10px] font-mono text-gray-400 font-bold uppercase">Network I/O</span>
-                                    <span class="text-lg font-black text-indigo-600 font-mono" id="net-lbl">0 KB/s</span>
+                                <div class="bg-canvas p-3 rounded-md border border-line">
+                                    <span class="block text-[9px] font-mono text-ink-400 font-semibold uppercase">Network I/O</span>
+                                    <span class="text-base font-display font-bold text-warn-600 font-mono" id="net-lbl">0 KB/s</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="bg-white p-6 rounded-2xl border border-gray-200 space-y-6 shadow-card flex flex-col justify-between">
+                        <div class="bg-surface p-6 rounded-lg border border-line shadow-panel flex flex-col justify-between">
                             <div class="space-y-4">
                                 <div>
-                                    <h3 class="text-base font-bold text-gray-900 mb-1"><i class="fa-solid fa-fingerprint text-emerald-500 mr-2"></i> AI Plagiarism Detection</h3>
-                                    <p class="text-xs text-gray-500">Code structure compared against previously evaluated submissions using structural hashing.</p>
+                                    <h3 class="text-sm font-display font-semibold text-ink-900 flex items-center gap-2"><i class="fa-solid fa-fingerprint text-pass-600"></i> AI Plagiarism Detection</h3>
+                                    <p class="text-xs text-ink-400 mt-0.5">Code structure compared against previously evaluated submissions using structural hashing.</p>
                                 </div>
 
-                                <div class="p-4 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between">
+                                <div class="p-4 bg-canvas border border-line rounded-md flex items-center justify-between">
                                     <div class="flex items-center gap-3">
-                                        <i class="fa-solid fa-shield-halved text-2xl text-emerald-500"></i>
+                                        <i class="fa-solid fa-shield-halved text-xl text-pass-600"></i>
                                         <div>
-                                            <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Cryptographic Hash Validation</h4>
-                                            <span class="text-[9px] text-gray-400">Checking signature indexes for duplication risk</span>
+                                            <h4 class="text-xs font-semibold text-ink-700 uppercase tracking-wide">Cryptographic Hash Validation</h4>
+                                            <span class="text-[10px] text-ink-400">Checking signature indexes for duplication risk</span>
                                         </div>
                                     </div>
-                                    <span class="bg-emerald-50 border border-emerald-200 text-emerald-600 px-3 py-1 text-[9px] font-extrabold rounded-full font-mono uppercase">99.8% Unique</span>
+                                    <span class="bg-pass-100 text-pass-600 px-2.5 py-1 text-[9px] font-mono font-bold rounded uppercase">99.8% Unique</span>
                                 </div>
 
-                                <div class="p-4 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between">
+                                <div class="p-4 bg-canvas border border-line rounded-md flex items-center justify-between">
                                     <div class="flex items-center gap-3">
-                                        <i class="fa-solid fa-code-compare text-2xl text-indigo-500"></i>
+                                        <i class="fa-solid fa-code-compare text-xl text-accent-600"></i>
                                         <div>
-                                            <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Static Abstract Syntax Tree Analysis</h4>
-                                            <span class="text-[9px] text-gray-400">Identifying block shifting and logical similarities</span>
+                                            <h4 class="text-xs font-semibold text-ink-700 uppercase tracking-wide">Static Syntax Tree Analysis</h4>
+                                            <span class="text-[10px] text-ink-400">Identifying block shifting and logical similarities</span>
                                         </div>
                                     </div>
-                                    <span class="bg-indigo-50 border border-indigo-200 text-indigo-600 px-3 py-1 text-[9px] font-extrabold rounded-full font-mono uppercase">Gate Passed</span>
+                                    <span class="bg-accent-100 text-accent-600 px-2.5 py-1 text-[9px] font-mono font-bold rounded uppercase">Gate Passed</span>
                                 </div>
                             </div>
 
-                            <div class="border-t border-gray-200 pt-4 mt-4 space-y-3">
-                                <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">Run Manual Forensic Verification</span>
-                                <button onclick="triggerForensicVerification()" class="w-full bg-gray-50 border border-gray-300 hover:bg-gray-100 hover:border-gray-400 text-gray-700 py-3 rounded-xl text-xs font-extrabold uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+                            <div class="border-t border-line pt-4 mt-4 space-y-2">
+                                <span class="block text-[10px] font-semibold text-ink-400 uppercase tracking-wide">Run Manual Forensic Verification</span>
+                                <button onclick="triggerForensicVerification()" class="w-full bg-canvas border border-line hover:bg-accent-50 hover:border-accent-200 text-ink-700 py-2.5 rounded-md text-xs font-semibold uppercase tracking-wide transition-all flex items-center justify-center gap-2">
                                     <i class="fa-solid fa-magnifying-glass"></i> Trigger Similarity Scan
                                 </button>
                             </div>
@@ -511,6 +618,186 @@
 
     <script>
         const API_BASE = window.location.origin.includes('http') ? window.location.origin : 'http://127.0.0.1:8000';
+
+        // ============ AUTH STATE ============
+        let authToken = localStorage.getItem('ezitech_token') || null;
+        let currentUser = null;
+
+        function switchAuthTab(tab) {
+            const loginTab = document.getElementById('auth-tab-login');
+            const registerTab = document.getElementById('auth-tab-register');
+            const loginForm = document.getElementById('auth-form-login');
+            const registerForm = document.getElementById('auth-form-register');
+
+            if (tab === 'login') {
+                loginTab.className = "flex-1 py-3.5 text-[11px] font-semibold uppercase tracking-wider auth-tab-active transition-all";
+                registerTab.className = "flex-1 py-3.5 text-[11px] font-semibold uppercase tracking-wider auth-tab-inactive transition-all";
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+            } else {
+                registerTab.className = "flex-1 py-3.5 text-[11px] font-semibold uppercase tracking-wider auth-tab-active transition-all";
+                loginTab.className = "flex-1 py-3.5 text-[11px] font-semibold uppercase tracking-wider auth-tab-inactive transition-all";
+                registerForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
+            }
+        }
+
+        function showAuthError(elementId, message) {
+            const el = document.getElementById(elementId);
+            el.innerText = message;
+            el.classList.remove('hidden');
+        }
+
+        function hideAuthErrors() {
+            document.getElementById('login-error-msg').classList.add('hidden');
+            document.getElementById('register-error-msg').classList.add('hidden');
+        }
+
+        async function handleLogin() {
+            hideAuthErrors();
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+            const btn = document.getElementById('login-btn');
+
+            if (!email || !password) {
+                showAuthError('login-error-msg', 'Please enter both email and password.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Logging in...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const body = await res.json();
+
+                if (!res.ok) {
+                    showAuthError('login-error-msg', body.detail || 'Login failed.');
+                    return;
+                }
+
+                completeLogin(body.token, body.user);
+            } catch (err) {
+                showAuthError('login-error-msg', 'Could not reach the server. Is the backend running?');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Log In`;
+            }
+        }
+
+        async function handleRegister() {
+            hideAuthErrors();
+            const full_name = document.getElementById('register-name').value.trim();
+            const email = document.getElementById('register-email').value.trim();
+            const password = document.getElementById('register-password').value;
+            const role = document.getElementById('register-role').value;
+            const btn = document.getElementById('register-btn');
+
+            if (!email || !password) {
+                showAuthError('register-error-msg', 'Please enter both email and password.');
+                return;
+            }
+            if (password.length < 6) {
+                showAuthError('register-error-msg', 'Password must be at least 6 characters.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Creating account...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, full_name, role })
+                });
+                const body = await res.json();
+
+                if (!res.ok) {
+                    showAuthError('register-error-msg', body.detail || 'Registration failed.');
+                    return;
+                }
+
+                completeLogin(body.token, body.user);
+            } catch (err) {
+                showAuthError('register-error-msg', 'Could not reach the server. Is the backend running?');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-user-plus"></i> Create Account`;
+            }
+        }
+
+        function completeLogin(token, user) {
+            authToken = token;
+            currentUser = user;
+            localStorage.setItem('ezitech_token', token);
+            showMainApp();
+        }
+
+        function handleLogout() {
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('ezitech_token');
+            document.getElementById('main-app').classList.add('hidden');
+            document.getElementById('auth-screen').classList.remove('hidden');
+            document.getElementById('login-email').value = '';
+            document.getElementById('login-password').value = '';
+        }
+
+        function showMainApp() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            document.getElementById('main-app').classList.add('flex');
+
+            if (currentUser) {
+                const initials = (currentUser.full_name || currentUser.email).slice(0, 2).toUpperCase();
+                document.getElementById('user-avatar').innerText = initials;
+                document.getElementById('user-name-lbl').innerText = currentUser.full_name || currentUser.email;
+                document.getElementById('user-role-lbl').innerText = currentUser.role;
+            }
+
+            renderLeaderboard();
+            renderDashboardRadar();
+            updateStats();
+            updateLastSync();
+            syncDatabaseLeaderboard();
+        }
+
+        async function tryRestoreSession() {
+            if (!authToken) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (!res.ok) {
+                    localStorage.removeItem('ezitech_token');
+                    authToken = null;
+                    return;
+                }
+                currentUser = await res.json();
+                showMainApp();
+            } catch (err) {
+                console.log("Session restore failed:", err);
+            }
+        }
+
+        async function authFetch(url, options = {}) {
+            options.headers = options.headers || {};
+            options.headers['Authorization'] = `Bearer ${authToken}`;
+            const res = await fetch(url, options);
+            if (res.status === 401 || res.status === 403) {
+                handleLogout();
+                showToast("Your session has expired. Please log in again.", "error");
+                throw new Error("Session expired");
+            }
+            return res;
+        }
+
+        // ============ SCORE FIELDS / STATE ============
 
         const SCORE_FIELDS = [
             { key: 'featureCompletion', label: 'Feature Completion' },
@@ -559,14 +846,8 @@
                     const data = await response.json();
                     if (data && data.length > 0) {
                         const parsedRecords = data.map(record => mapBackendRecord(record));
-
                         MOCK_SUBMISSIONS.length = 0;
                         MOCK_SUBMISSIONS.push(...parsedRecords);
-
-                        if (!window.liveServerConnected) {
-                            showToast("Database synced successfully.", "success");
-                            window.liveServerConnected = true;
-                        }
                     }
                 }
             } catch (err) {
@@ -575,7 +856,6 @@
             renderLeaderboard();
             renderDashboardRadar();
             updateStats();
-            updateLastSync();
         }
 
         function mapBackendRecord(record) {
@@ -620,25 +900,25 @@
         function showToast(message, type = 'info') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            toast.className = `flex items-center gap-3 px-5 py-4 rounded-xl border text-xs font-bold shadow-2xl transition-all duration-300 transform translate-y-5 opacity-0 pointer-events-auto min-w-[280px]`;
+            toast.className = `flex items-center gap-3 px-4 py-3 rounded-md border text-xs font-semibold shadow-lg transition-all duration-300 transform translate-y-3 opacity-0 pointer-events-auto min-w-[280px]`;
 
-            let icon = 'fa-info-circle text-blue-500';
+            let icon = 'fa-info-circle text-accent-600';
             if (type === 'success') {
-                toast.classList.add('bg-white', 'border-emerald-200', 'text-emerald-700');
-                icon = 'fa-circle-check text-emerald-500';
+                toast.classList.add('bg-white', 'border-pass-100', 'text-pass-600');
+                icon = 'fa-circle-check text-pass-600';
             } else if (type === 'error') {
-                toast.classList.add('bg-white', 'border-rose-200', 'text-rose-700');
-                icon = 'fa-triangle-exclamation text-rose-500';
+                toast.classList.add('bg-white', 'border-fail-100', 'text-fail-600');
+                icon = 'fa-triangle-exclamation text-fail-600';
             } else {
-                toast.classList.add('bg-white', 'border-blue-200', 'text-gray-700');
+                toast.classList.add('bg-white', 'border-accent-100', 'text-ink-700');
             }
 
             toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i> <span>${message}</span>`;
             container.appendChild(toast);
 
-            setTimeout(() => toast.classList.remove('translate-y-5', 'opacity-0'), 50);
+            setTimeout(() => toast.classList.remove('translate-y-3', 'opacity-0'), 50);
             setTimeout(() => {
-                toast.classList.add('translate-y-5', 'opacity-0');
+                toast.classList.add('translate-y-3', 'opacity-0');
                 setTimeout(() => toast.remove(), 300);
             }, 4000);
         }
@@ -646,12 +926,12 @@
         function switchTab(tabId) {
             document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.nav-tab-btn').forEach(el => {
-                el.className = "nav-tab-btn w-full flex items-center gap-3 px-4 py-3 text-xs uppercase tracking-wider font-semibold rounded-xl text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-all";
+                el.className = "nav-tab-btn w-full flex items-center gap-2.5 px-3 py-2.5 text-[12px] font-medium rounded-md text-ink-400 hover:text-ink-700 hover:bg-canvas border-l-2 border-transparent transition-all";
             });
 
             document.getElementById(`tab-${tabId}`).classList.remove('hidden');
             const targetBtn = document.getElementById(`btn-${tabId}`);
-            targetBtn.className = "nav-tab-btn w-full flex items-center gap-3 px-4 py-3 text-xs uppercase tracking-wider font-semibold rounded-xl text-blue-600 bg-blue-50 border-l-4 border-blue-600 transition-all";
+            targetBtn.className = "nav-tab-btn w-full flex items-center gap-2.5 px-3 py-2.5 text-[12px] font-medium rounded-md text-accent-600 bg-accent-50 border-l-2 border-accent-600 transition-all";
 
             activeTab = tabId;
 
@@ -702,10 +982,10 @@
             input.classList.remove('input-error', 'input-valid');
             if (state === 'error') {
                 input.classList.add('input-error');
-                msg.className = "text-[10px] font-bold mt-1 text-rose-600";
+                msg.className = "text-[10px] font-semibold mt-1 text-fail-600";
             } else if (state === 'valid') {
                 input.classList.add('input-valid');
-                msg.className = "text-[10px] font-bold mt-1 text-emerald-600";
+                msg.className = "text-[10px] font-semibold mt-1 text-pass-600";
             }
             msg.innerText = message;
             msg.classList.remove('hidden');
@@ -717,15 +997,13 @@
             const container = document.getElementById('validation-checklist');
             container.innerHTML = VALIDATION_ITEMS.map((item, idx) => `
                 <div class="flex items-center justify-between text-xs font-medium" id="vcheck-${idx}">
-                    <span class="text-gray-600">${item}</span>
+                    <span class="text-ink-600">${item}</span>
                     <span class="check-pending"><i class="fa-solid fa-circle-notch"></i> Pending</span>
                 </div>
             `).join('');
         }
 
         function runValidationChecklist() {
-            // Shows an in-progress animation while the pipeline runs.
-            // The real pass/fail result is applied afterwards by applyValidationChecklistResults().
             VALIDATION_ITEMS.forEach((item, idx) => {
                 setTimeout(() => {
                     const el = document.getElementById(`vcheck-${idx}`);
@@ -750,25 +1028,25 @@
         }
 
         function updateSVGNodeStatus(nodeIndex, status) {
-            const circle = document.getElementById(`node-${nodeIndex}`);
+            const rect = document.getElementById(`node-${nodeIndex}`);
             const line = document.getElementById(`line-${nodeIndex}`);
-            if (!circle) return;
+            if (!rect) return;
 
             if (status === 'active') {
-                circle.setAttribute('fill', '#2563EB');
-                circle.setAttribute('stroke', '#60A5FA');
-                circle.classList.add('node-pulse');
-                if (line) line.setAttribute('stroke', '#2563EB');
+                rect.setAttribute('fill', '#1D3557');
+                rect.setAttribute('stroke', '#1D3557');
+                rect.classList.add('node-active');
+                if (line) line.setAttribute('stroke', '#1D3557');
             } else if (status === 'passed') {
-                circle.setAttribute('fill', '#059669');
-                circle.setAttribute('stroke', '#34D399');
-                circle.classList.remove('node-pulse');
-                if (line) line.setAttribute('stroke', '#059669');
+                rect.setAttribute('fill', '#0F9D6B');
+                rect.setAttribute('stroke', '#0F9D6B');
+                rect.classList.remove('node-active');
+                if (line) line.setAttribute('stroke', '#0F9D6B');
             } else {
-                circle.setAttribute('fill', '#FFFFFF');
-                circle.setAttribute('stroke', '#CBD5E1');
-                circle.classList.remove('node-pulse');
-                if (line) line.setAttribute('stroke', '#CBD5E1');
+                rect.setAttribute('fill', '#FFFFFF');
+                rect.setAttribute('stroke', '#D6DAE1');
+                rect.classList.remove('node-active');
+                if (line) line.setAttribute('stroke', '#D6DAE1');
             }
         }
 
@@ -821,7 +1099,7 @@
             setUrlValidationState('valid', `Verified: ${verification.data.full_name}`);
             showToast(`Repository verified: ${verification.data.full_name}`, "success");
 
-            const backendCallPromise = fetch(`${API_BASE}/api/v1/evaluate`, {
+            const backendCallPromise = authFetch(`${API_BASE}/api/v1/evaluate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ github_url: inputFieldVal })
@@ -847,7 +1125,7 @@
             startResourceTelemetry();
 
             statusBadge.innerText = "Compiling Sandbox";
-            statusBadge.className = "bg-blue-50 text-blue-600 text-[9px] font-bold font-mono px-3 py-1 rounded-full border border-blue-200 uppercase tracking-wider";
+            statusBadge.className = "bg-accent-50 text-accent-600 text-[9px] font-mono font-semibold px-2.5 py-1 rounded border border-accent-100 uppercase tracking-wider";
 
             const sourceLabel = verification.data.full_name;
 
@@ -918,11 +1196,11 @@
                     const line = document.createElement('p');
                     line.innerHTML = stepLogs[currentStep][logIndex];
 
-                    if (line.innerText.includes('[PASSED]')) line.className = 'text-emerald-400 font-bold';
-                    else if (line.innerText.includes('[SYSTEM]')) line.className = 'text-gray-400';
-                    else if (line.innerText.includes('[DATABASE]')) line.className = 'text-indigo-400';
-                    else if (line.innerText.includes('[SECURITY]')) line.className = 'text-amber-400';
-                    else line.className = 'text-gray-300';
+                    if (line.innerText.includes('[PASSED]')) line.className = 'text-pass-600 font-semibold';
+                    else if (line.innerText.includes('[SYSTEM]')) line.className = 'text-ink-400';
+                    else if (line.innerText.includes('[DATABASE]')) line.className = 'text-accent-500';
+                    else if (line.innerText.includes('[SECURITY]')) line.className = 'text-warn-600';
+                    else line.className = 'text-ink-300';
 
                     terminal.appendChild(line);
                     terminal.scrollTop = terminal.scrollHeight;
@@ -944,18 +1222,19 @@
 
             if (!backendRecord) {
                 statusBadge.innerText = "Evaluation Failed";
-                statusBadge.className = "bg-rose-50 text-rose-600 text-[9px] font-bold font-mono px-3 py-1 rounded-full border border-rose-200 uppercase tracking-wider";
-                showToast(errorMessage || "Evaluation failed. Please check the backend logs.", "error");
+                statusBadge.className = "bg-fail-100 text-fail-600 text-[9px] font-mono font-semibold px-2.5 py-1 rounded border border-fail-100 uppercase tracking-wider";
+                if (errorMessage !== "Session expired") {
+                    showToast(errorMessage || "Evaluation failed. Please check the backend logs.", "error");
+                }
                 stopResourceTelemetry();
                 return;
             }
 
             statusBadge.innerText = "System Stable";
-            statusBadge.className = "bg-gray-100 text-gray-500 text-[9px] font-bold font-mono px-3 py-1 rounded-full border border-gray-200 uppercase tracking-wider";
+            statusBadge.className = "bg-white/5 text-ink-300 text-[9px] font-mono font-semibold px-2.5 py-1 rounded border border-white/10 uppercase tracking-wider";
 
             const finalRecordObj = mapBackendRecord(backendRecord);
 
-            // Apply the real structure-check results onto the checklist UI now that they're known.
             if (finalRecordObj.structureChecks) {
                 applyValidationChecklistResults(finalRecordObj.structureChecks);
             }
@@ -979,7 +1258,7 @@
             stopResourceTelemetry();
         }
 
-        // ---- Telemetry (real host CPU / RAM / Network via /api/v1/system-stats) ----
+        // ---- Telemetry ----
 
         let telemetryInterval = null;
         let telemetryChart = null;
@@ -1000,17 +1279,17 @@
                 data: {
                     labels: telemetryLabels,
                     datasets: [
-                        { label: 'CPU (%)', data: cpuDataPoints, borderColor: 'rgba(37, 99, 235, 1)', backgroundColor: 'rgba(37, 99, 235, 0.06)', borderWidth: 2, tension: 0.35, fill: true },
-                        { label: 'RAM (%)', data: ramDataPoints, borderColor: 'rgba(5, 150, 105, 1)', backgroundColor: 'rgba(5, 150, 105, 0.06)', borderWidth: 2, tension: 0.35, fill: true }
+                        { label: 'CPU (%)', data: cpuDataPoints, borderColor: '#1D3557', backgroundColor: 'rgba(29,53,87,0.06)', borderWidth: 2, tension: 0.3, fill: true },
+                        { label: 'RAM (%)', data: ramDataPoints, borderColor: '#0F9D6B', backgroundColor: 'rgba(15,157,107,0.06)', borderWidth: 2, tension: 0.3, fill: true }
                     ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { labels: { color: '#475569', font: { size: 10 } } } },
+                    plugins: { legend: { labels: { color: '#4B5468', font: { size: 10 } } } },
                     scales: {
-                        x: { ticks: { color: '#94A3B8', font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.04)' } },
-                        y: { min: 0, max: 100, ticks: { color: '#94A3B8', font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.04)' } }
+                        x: { ticks: { color: '#8B92A3', font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.03)' } },
+                        y: { min: 0, max: 100, ticks: { color: '#8B92A3', font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.03)' } }
                     }
                 }
             });
@@ -1071,44 +1350,44 @@
             if (selectedTech !== 'all') sortedData = sortedData.filter(item => item.stack === selectedTech);
 
             if (sortedData.length === 0) {
-                body.innerHTML = `<tr><td colspan="9" class="py-10 text-center text-gray-400 text-xs">No evaluations yet. Submit a GitHub repository from the Control Room to get started.</td></tr>`;
+                body.innerHTML = `<tr><td colspan="9" class="py-10 text-center text-ink-400 text-xs">No evaluations yet. Submit a GitHub repository from the Control Room to get started.</td></tr>`;
                 return;
             }
 
             sortedData.forEach((row, index) => {
                 const rank = index + 1;
-                let badge = `<span class="text-gray-400 font-mono font-extrabold">${rank}</span>`;
-                if (rank === 1) badge = `<span class="text-base">🥇</span>`;
-                else if (rank === 2) badge = `<span class="text-base">🥈</span>`;
-                else if (rank === 3) badge = `<span class="text-base">🥉</span>`;
+                let badge = `<span class="text-ink-400 font-mono font-bold">${rank}</span>`;
+                if (rank === 1) badge = `<span class="text-sm">🥇</span>`;
+                else if (rank === 2) badge = `<span class="text-sm">🥈</span>`;
+                else if (rank === 3) badge = `<span class="text-sm">🥉</span>`;
 
-                let gradeColor = 'text-emerald-600 bg-emerald-50 border-emerald-200';
-                if (row.grade === 'B') gradeColor = 'text-blue-600 bg-blue-50 border-blue-200';
-                if (row.grade === 'C') gradeColor = 'text-amber-600 bg-amber-50 border-amber-200';
+                let gradeColor = 'text-pass-600 bg-pass-100';
+                if (row.grade === 'B') gradeColor = 'text-accent-600 bg-accent-100';
+                if (row.grade === 'C') gradeColor = 'text-warn-600 bg-warn-100';
 
                 body.innerHTML += `
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="py-4 px-6 text-center text-sm">${badge}</td>
-                        <td class="py-4 px-6">
-                            <div class="font-bold text-gray-900 text-xs">${row.repo_name}</div>
-                            <a href="${row.github_url}" target="_blank" class="text-[10px] text-blue-600 hover:underline font-mono block truncate max-w-xs">${row.github_url}</a>
+                    <tr class="hover:bg-canvas transition-colors">
+                        <td class="py-3.5 px-5 text-center text-sm">${badge}</td>
+                        <td class="py-3.5 px-5">
+                            <div class="font-semibold text-ink-900 text-[11px]">${row.repo_name}</div>
+                            <a href="${row.github_url}" target="_blank" class="text-[10px] text-accent-600 hover:underline font-mono block truncate max-w-xs">${row.github_url}</a>
                         </td>
-                        <td class="py-4 px-4 text-center">
-                            <span class="px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-gray-100 border border-gray-200 text-gray-600">${row.stack}</span>
+                        <td class="py-3.5 px-3 text-center">
+                            <span class="px-2 py-1 rounded text-[9px] font-semibold uppercase tracking-wide bg-canvas border border-line text-ink-600">${row.stack}</span>
                         </td>
-                        <td class="py-4 px-4 text-center font-mono text-gray-600">${row.architecture.toFixed(1)}%</td>
-                        <td class="py-4 px-4 text-center font-mono text-gray-600">${row.security.toFixed(1)}%</td>
-                        <td class="py-4 px-4 text-center font-mono text-gray-600">${row.build_time}</td>
-                        <td class="py-4 px-4 text-center font-mono font-bold text-blue-600">${row.overallScore.toFixed(1)}%</td>
-                        <td class="py-4 px-4 text-center">
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${gradeColor}">${row.grade}</span>
+                        <td class="py-3.5 px-3 text-center font-mono text-ink-600">${row.architecture.toFixed(1)}%</td>
+                        <td class="py-3.5 px-3 text-center font-mono text-ink-600">${row.security.toFixed(1)}%</td>
+                        <td class="py-3.5 px-3 text-center font-mono text-ink-600">${row.build_time}</td>
+                        <td class="py-3.5 px-3 text-center font-mono font-bold text-accent-600">${row.overallScore.toFixed(1)}%</td>
+                        <td class="py-3.5 px-3 text-center">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${gradeColor}">${row.grade}</span>
                         </td>
-                        <td class="py-4 px-6 text-center">
-                            <div class="flex items-center justify-center gap-2">
-                                <button onclick="viewReport(${row.id})" class="bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white border border-blue-200 font-bold px-3 py-1.5 rounded-xl text-[10px] transition-all flex items-center gap-1.5 uppercase tracking-wider">
+                        <td class="py-3.5 px-5 text-center">
+                            <div class="flex items-center justify-center gap-1.5">
+                                <button onclick="viewReport(${row.id})" class="bg-accent-50 hover:bg-accent-600 text-accent-600 hover:text-white border border-accent-100 font-semibold px-2.5 py-1.5 rounded text-[9px] transition-all flex items-center gap-1 uppercase tracking-wide">
                                     <i class="fa-solid fa-file-invoice"></i> Inspect
                                 </button>
-                                <button onclick="triggerReevaluation(${row.id})" class="bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-200 font-bold p-1.5 rounded-xl text-[10px] transition-all" title="Re-run this repository">
+                                <button onclick="triggerReevaluation(${row.id})" class="bg-canvas hover:bg-line text-ink-500 border border-line font-semibold p-1.5 rounded text-[9px] transition-all" title="Re-run this repository">
                                     <i class="fa-solid fa-arrows-rotate"></i>
                                 </button>
                             </div>
@@ -1125,7 +1404,7 @@
             if (!container) return;
 
             if (MOCK_SUBMISSIONS.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center text-xs text-gray-400 py-4">No evaluations yet — category leaders will appear here once repositories are evaluated.</div>`;
+                container.innerHTML = `<div class="col-span-full text-center text-xs text-ink-400 py-4">No evaluations yet — category leaders will appear here once repositories are evaluated.</div>`;
                 return;
             }
 
@@ -1137,21 +1416,21 @@
             const bestPerformance = [...MOCK_SUBMISSIONS].sort((a, b) => b.performanceScore - a.performanceScore)[0];
 
             const cards = [
-                { label: 'Highest Engineering Score', icon: 'fa-star', color: 'text-blue-600', value: highestScore.repo_name, sub: `${highestScore.overallScore.toFixed(1)}%` },
-                { label: 'Fastest Build', icon: 'fa-bolt', color: 'text-amber-500', value: fastestBuild.repo_name, sub: fastestBuild.build_time },
-                { label: 'Best Architecture', icon: 'fa-sitemap', color: 'text-indigo-600', value: bestArchitecture.repo_name, sub: `${bestArchitecture.architecture.toFixed(1)}%` },
-                { label: 'Best API Design', icon: 'fa-plug', color: 'text-emerald-600', value: bestApiDesign.repo_name, sub: `${bestApiDesign.apiQuality.toFixed(1)}%` },
-                { label: 'Best Documentation', icon: 'fa-book', color: 'text-rose-500', value: bestDocumentation.repo_name, sub: `${bestDocumentation.documentationScore.toFixed(1)}%` },
-                { label: 'Best Performance', icon: 'fa-gauge', color: 'text-cyan-600', value: bestPerformance.repo_name, sub: `${bestPerformance.performanceScore.toFixed(1)}%` }
+                { label: 'Highest Score', icon: 'fa-star', color: 'text-accent-600', value: highestScore.repo_name, sub: `${highestScore.overallScore.toFixed(1)}%` },
+                { label: 'Fastest Build', icon: 'fa-bolt', color: 'text-warn-600', value: fastestBuild.repo_name, sub: fastestBuild.build_time },
+                { label: 'Best Architecture', icon: 'fa-sitemap', color: 'text-accent-600', value: bestArchitecture.repo_name, sub: `${bestArchitecture.architecture.toFixed(1)}%` },
+                { label: 'Best API Design', icon: 'fa-plug', color: 'text-pass-600', value: bestApiDesign.repo_name, sub: `${bestApiDesign.apiQuality.toFixed(1)}%` },
+                { label: 'Best Documentation', icon: 'fa-book', color: 'text-fail-600', value: bestDocumentation.repo_name, sub: `${bestDocumentation.documentationScore.toFixed(1)}%` },
+                { label: 'Best Performance', icon: 'fa-gauge', color: 'text-accent-600', value: bestPerformance.repo_name, sub: `${bestPerformance.performanceScore.toFixed(1)}%` }
             ];
 
             container.innerHTML = cards.map(c => `
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-card">
-                    <div class="flex items-center gap-2 mb-1">
-                        <i class="fa-solid ${c.icon} ${c.color} text-sm"></i>
-                        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">${c.label}</span>
+                <div class="bg-surface p-3.5 rounded-lg border border-line shadow-panel">
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <i class="fa-solid ${c.icon} ${c.color} text-xs"></i>
+                        <span class="text-[8px] font-semibold text-ink-400 uppercase tracking-wide">${c.label}</span>
                     </div>
-                    <div class="text-xs font-bold text-gray-900 truncate">${c.value}</div>
+                    <div class="text-[11px] font-semibold text-ink-900 truncate">${c.value}</div>
                     <div class="text-[10px] font-mono ${c.color} font-bold">${c.sub}</div>
                 </div>
             `).join('');
@@ -1208,12 +1487,12 @@
                 const val = item[f.key];
                 return `
                     <div>
-                        <div class="flex justify-between text-[10px] font-bold text-gray-500 mb-1">
+                        <div class="flex justify-between text-[10px] font-semibold text-ink-500 mb-1">
                             <span>${f.label}</span>
-                            <span class="font-mono text-gray-700">${val.toFixed(1)}%</span>
+                            <span class="font-mono text-ink-700">${val.toFixed(1)}%</span>
                         </div>
-                        <div class="w-full bg-gray-100 rounded-full h-2">
-                            <div class="bg-blue-500 h-2 rounded-full" style="width:${val}%"></div>
+                        <div class="w-full bg-canvas rounded-full h-1.5 border border-line">
+                            <div class="bg-accent-600 h-1.5 rounded-full" style="width:${val}%"></div>
                         </div>
                     </div>
                 `;
@@ -1222,13 +1501,13 @@
             const strengthsUl = document.getElementById('feedback-strengths');
             strengthsUl.innerHTML = '';
             item.strengths.forEach(str => {
-                strengthsUl.innerHTML += `<li class="flex items-start gap-2"><i class="fa-solid fa-square-check text-emerald-500 mt-0.5"></i> <span>${str}</span></li>`;
+                strengthsUl.innerHTML += `<li class="flex items-start gap-2"><i class="fa-solid fa-square-check text-pass-600 mt-0.5 text-[10px]"></i> <span>${str}</span></li>`;
             });
 
             const weaknessesUl = document.getElementById('feedback-weaknesses');
             weaknessesUl.innerHTML = '';
             item.weaknesses.forEach(weak => {
-                weaknessesUl.innerHTML += `<li class="flex items-start gap-2"><i class="fa-solid fa-triangle-exclamation text-rose-500 mt-0.5"></i> <span>${weak}</span></li>`;
+                weaknessesUl.innerHTML += `<li class="flex items-start gap-2"><i class="fa-solid fa-triangle-exclamation text-fail-600 mt-0.5 text-[10px]"></i> <span>${weak}</span></li>`;
             });
 
             switchTab('reports');
@@ -1239,10 +1518,10 @@
             const el = document.getElementById(elementId);
             if (passed) {
                 el.innerText = "PASSED";
-                el.className = "bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded text-[9px] font-extrabold tracking-wider border border-emerald-200";
+                el.className = "bg-pass-100 text-pass-600 px-2 py-0.5 rounded text-[9px] font-bold tracking-wide border border-pass-100 shrink-0 font-mono";
             } else {
                 el.innerText = "FAILED";
-                el.className = "bg-rose-50 text-rose-600 px-2 py-0.5 rounded text-[9px] font-extrabold tracking-wider border border-rose-200";
+                el.className = "bg-fail-100 text-fail-600 px-2 py-0.5 rounded text-[9px] font-bold tracking-wide border border-fail-100 shrink-0 font-mono";
             }
         }
 
@@ -1273,9 +1552,9 @@
                     datasets: [{
                         label: 'Score (%)',
                         data: SCORE_FIELDS.map(f => item[f.key]),
-                        backgroundColor: 'rgba(37, 99, 235, 0.10)',
-                        borderColor: 'rgba(37, 99, 235, 1)',
-                        pointBackgroundColor: 'rgba(37, 99, 235, 1)',
+                        backgroundColor: 'rgba(29,53,87,0.08)',
+                        borderColor: '#1D3557',
+                        pointBackgroundColor: '#1D3557',
                         borderWidth: 2,
                     }]
                 },
@@ -1283,11 +1562,12 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
+                    layout: { padding: 18 },
                     scales: {
                         r: {
-                            angleLines: { color: 'rgba(0,0,0,0.06)' },
-                            grid: { color: 'rgba(0,0,0,0.06)' },
-                            pointLabels: { color: '#475569', font: { size: 9 } },
+                            angleLines: { color: 'rgba(0,0,0,0.05)' },
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            pointLabels: { color: '#4B5468', font: { size: 8 } },
                             ticks: { display: false },
                             min: 0, max: 100
                         }
@@ -1301,9 +1581,9 @@
             const topSubmissions = [...MOCK_SUBMISSIONS].sort((a, b) => b.overallScore - a.overallScore).slice(0, 3);
 
             const colors = [
-                { border: 'rgba(37, 99, 235, 1)', bg: 'rgba(37, 99, 235, 0.06)' },
-                { border: 'rgba(5, 150, 105, 1)', bg: 'rgba(5, 150, 105, 0.06)' },
-                { border: 'rgba(99, 102, 241, 1)', bg: 'rgba(99, 102, 241, 0.06)' }
+                { border: '#1D3557', bg: 'rgba(29,53,87,0.06)' },
+                { border: '#0F9D6B', bg: 'rgba(15,157,107,0.06)' },
+                { border: '#B76E1A', bg: 'rgba(183,110,26,0.06)' }
             ];
 
             const datasets = topSubmissions.map((sub, idx) => ({
@@ -1323,12 +1603,13 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { labels: { color: '#475569', font: { size: 10 } } } },
+                    plugins: { legend: { labels: { color: '#4B5468', font: { size: 10 } } } },
+                    layout: { padding: 16 },
                     scales: {
                         r: {
-                            angleLines: { color: 'rgba(0,0,0,0.06)' },
-                            grid: { color: 'rgba(0,0,0,0.06)' },
-                            pointLabels: { color: '#475569', font: { size: 9 } },
+                            angleLines: { color: 'rgba(0,0,0,0.05)' },
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            pointLabels: { color: '#4B5468', font: { size: 9 } },
                             ticks: { display: false },
                             min: 0, max: 100
                         }
@@ -1338,11 +1619,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            renderLeaderboard();
-            renderDashboardRadar();
-            updateStats();
-            updateLastSync();
-            syncDatabaseLeaderboard();
+            tryRestoreSession();
         });
     </script>
 </body>
