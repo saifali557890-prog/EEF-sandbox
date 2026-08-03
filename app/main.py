@@ -1,10 +1,11 @@
+import os
+import json
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-import os
-import json
+from dotenv import load_dotenv
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -22,23 +23,42 @@ from app.plagiarism import compute_source_hash, check_similarity
 from app.system_monitor import get_system_stats
 from app.ai_feedback import generate_ai_feedback
 
+load_dotenv()
+
+# ---- CORS configuration ----
+# Reads allowed origins from the ALLOWED_ORIGINS env var (comma-separated).
+# Defaults to "*" only if the variable is missing entirely — set this to the
+# real Ezitech website domain(s) before going live, e.g.:
+#   ALLOWED_ORIGINS=https://ezitech.com,https://portal.ezitech.com
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
+if _raw_origins.strip() == "*":
+    ALLOWED_ORIGINS = ["*"]
+else:
+    ALLOWED_ORIGINS = [origin.strip() for origin in _raw_origins.split(",") if origin.strip()]
+
 limiter = Limiter(key_func=get_remote_address)
 
-app = FastAPI(title="Ezitech Auto Evaluation Platform")
+app = FastAPI(
+    title="Ezitech Auto Evaluation Platform API",
+    description="REST API for the Ezitech Enterprise AI Engineering Sandbox. "
+                "Can be consumed independently by any external website "
+                "(e.g. the Ezitech Internship Portal) — the endpoints below "
+                "do not depend on the bundled dashboard UI.",
+    version="1.0.0",
+)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 init_db()
 
-# Declaring this as a proper security scheme is what makes Swagger UI show
-# the "Authorize" button and a lock icon on protected endpoints.
 bearer_scheme = HTTPBearer()
 
 
@@ -67,12 +87,20 @@ class LoginRequest(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 def serve_dashboard():
+    """Serves the bundled dashboard UI. External websites integrating via
+    the API directly do not need to call this endpoint at all."""
     possible_paths = ["leaderboard.html", "../leaderboard.html"]
     for path in possible_paths:
         if os.path.exists(path):
             with open(path, "r", encoding="utf-8") as file:
                 return file.read()
     raise HTTPException(status_code=404, detail="leaderboard.html was not found in the root directory")
+
+
+@app.get("/api/v1/health")
+def health_check():
+    """Lightweight endpoint external systems can poll to confirm the API is reachable."""
+    return {"status": "ok", "service": "ezitech-auto-evaluation-api"}
 
 
 # ---- Authentication ----
@@ -130,7 +158,7 @@ def get_me(user_id: int = Depends(get_current_user_id)):
         db.close()
 
 
-# ---- Evaluation Pipeline (requires login — note the Depends() below) ----
+# ---- Evaluation Pipeline (requires login) ----
 
 @app.post("/api/v1/evaluate")
 @limiter.limit("5/minute")
@@ -243,6 +271,9 @@ def evaluate_repo(request: Request, payload: EvaluateRequest, current_user_id: i
 
 @app.get("/api/v1/leaderboard")
 def get_leaderboard():
+    """Public endpoint — no authentication required. Any external website
+    (e.g. the Ezitech Internship Portal) can call this directly to display
+    the scoreboard in its own UI."""
     db = SessionLocal()
     try:
         records = db.query(Evaluation).order_by(Evaluation.overall_score.desc()).all()
@@ -259,6 +290,18 @@ def get_report(evaluation_id: int):
         if not record:
             raise HTTPException(status_code=404, detail="Evaluation not found")
         return record.to_dict()
+    finally:
+        db.close()
+
+
+@app.get("/api/v1/my-evaluations")
+def get_my_evaluations(user_id: int = Depends(get_current_user_id)):
+    """Returns only the evaluations submitted by the currently authenticated
+    user — useful for an external website's 'My Submissions' page."""
+    db = SessionLocal()
+    try:
+        records = db.query(Evaluation).filter(Evaluation.user_id == user_id).order_by(Evaluation.id.desc()).all()
+        return [r.to_dict() for r in records]
     finally:
         db.close()
 
