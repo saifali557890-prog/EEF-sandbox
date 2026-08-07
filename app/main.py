@@ -1,15 +1,18 @@
 import os
 import json
-from fastapi import FastAPI, HTTPException, Request, Depends
+import logging
+from typing import Generator
+from fastapi import FastAPI, HTTPException, Request, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from dotenv import load_dotenv
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy.orm import Session
 
 from app.models import init_db, SessionLocal, Evaluation, User
 from app.auth import hash_password, verify_password, create_access_token, decode_access_token
@@ -25,11 +28,14 @@ from app.ai_feedback import generate_ai_feedback
 
 load_dotenv()
 
+# Configure global logger
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 # ---- CORS configuration ----
-# Reads allowed origins from the ALLOWED_ORIGINS env var (comma-separated).
-# Defaults to "*" only if the variable is missing entirely — set this to the
-# real Ezitech website domain(s) before going live, e.g.:
-#   ALLOWED_ORIGINS=https://ezitech.com,https://portal.ezitech.com
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
 if _raw_origins.strip() == "*":
     ALLOWED_ORIGINS = ["*"]
@@ -40,10 +46,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
     title="Ezitech Auto Evaluation Platform API",
-    description="REST API for the Ezitech Enterprise AI Engineering Sandbox. "
-                "Can be consumed independently by any external website "
-                "(e.g. the Ezitech Internship Portal) — the endpoints below "
-                "do not depend on the bundled dashboard UI.",
+    description="REST API for the Ezitech Enterprise AI Engineering Sandbox.",
     version="1.0.0",
 )
 app.state.limiter = limiter
@@ -52,20 +55,39 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_credentials="*" not in ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Initialize Database tables
 init_db()
 
-bearer_scheme = HTTPBearer()
+# Dependency for DB Session
+def get_db() -> Generator[Session, None, None]:
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> int:
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token is required.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     payload = decode_access_token(credentials.credentials)
     if not payload:
-        raise HTTPException(status_code=401, detail="Invalid or expired token. Please log in again.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token. Please log in again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return payload.get("user_id")
 
 
@@ -74,21 +96,20 @@ class EvaluateRequest(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
     full_name: str = ""
     role: str = "intern"
 
 
 class LoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 
 @app.get("/", response_class=HTMLResponse)
 def serve_dashboard():
-    """Serves the bundled dashboard UI. External websites integrating via
-    the API directly do not need to call this endpoint at all."""
+    """Serves the bundled dashboard UI."""
     possible_paths = ["leaderboard.html", "../leaderboard.html"]
     for path in possible_paths:
         if os.path.exists(path):
@@ -99,22 +120,21 @@ def serve_dashboard():
 
 @app.get("/api/v1/health")
 def health_check():
-    """Lightweight endpoint external systems can poll to confirm the API is reachable."""
+    """Lightweight endpoint to confirm the API is reachable."""
     return {"status": "ok", "service": "ezitech-auto-evaluation-api"}
 
 
 # ---- Authentication ----
 
 @app.post("/api/v1/auth/register")
-def register(payload: RegisterRequest):
-    db = SessionLocal()
+def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     try:
         existing = db.query(User).filter(User.email == payload.email).first()
         if existing:
             raise HTTPException(status_code=400, detail="An account with this email already exists.")
 
-        if len(payload.password) < 6:
-            raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+        if len(payload.password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters long.")
 
         user = User(
             email=payload.email,
@@ -128,58 +148,71 @@ def register(payload: RegisterRequest):
 
         token = create_access_token({"user_id": user.id, "email": user.email, "role": user.role})
         return {"status": "success", "token": token, "user": user.to_dict()}
-    finally:
-        db.close()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        logger.exception("User registration failed for %s", payload.email)
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error. Please try again later.",
+        )
 
 
 @app.post("/api/v1/auth/login")
-def login(payload: LoginRequest):
-    db = SessionLocal()
-    try:
-        user = db.query(User).filter(User.email == payload.email).first()
-        if not user or not verify_password(payload.password, user.hashed_password):
-            raise HTTPException(status_code=401, detail="Invalid email or password.")
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user or not verify_password(payload.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
 
-        token = create_access_token({"user_id": user.id, "email": user.email, "role": user.role})
-        return {"status": "success", "token": token, "user": user.to_dict()}
-    finally:
-        db.close()
+    token = create_access_token({"user_id": user.id, "email": user.email, "role": user.role})
+    return {"status": "success", "token": token, "user": user.to_dict()}
 
 
 @app.get("/api/v1/auth/me")
-def get_me(user_id: int = Depends(get_current_user_id)):
-    db = SessionLocal()
-    try:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        return user.to_dict()
-    finally:
-        db.close()
+def get_me(user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    return user.to_dict()
 
 
-# ---- Evaluation Pipeline (requires login) ----
+# ---- Evaluation Pipeline ----
 
 @app.post("/api/v1/evaluate")
 @limiter.limit("5/minute")
-def evaluate_repo(request: Request, payload: EvaluateRequest, current_user_id: int = Depends(get_current_user_id)):
-    db = SessionLocal()
-    repo_path = None
+def evaluate_repo(
+    request: Request,
+    payload: EvaluateRequest,
+    current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    # Strict & Normalized GitHub URL Validation
+    url_clean = payload.github_url.strip().rstrip("/")
+    if not (url_clean.startswith("https://github.com/") or url_clean.startswith("http://github.com/")) or url_clean.count("/") < 4:
+        raise HTTPException(
+            status_code=400, 
+            detail="Invalid GitHub repository URL. Must be a full repository link like 'https://github.com/owner/repo'."
+        )
 
+    # Normalize owner/repo path to lowercase to prevent casing duplicates
+    owner_repo_normalized = "/".join(url_clean.split("/")[-2:]).lower()
+
+    repo_path = None
     try:
-        existing = db.query(Evaluation).filter(Evaluation.github_url == payload.github_url).first()
+        # Check against existing records (case-insensitive check using ILIKE/like)
+        existing = db.query(Evaluation).filter(Evaluation.github_url.ilike(f"%{owner_repo_normalized}")).first()
         if existing:
             return {"status": "already_evaluated", "data": existing.to_dict()}
 
-        repo_path = clone_repository(payload.github_url)
+        repo_path = clone_repository(url_clean)
         stack = detect_stack(repo_path)
 
         run_result = run_in_container(repo_path, stack)
         structure_checks = check_project_structure(repo_path, stack)
         test_results = run_test_suite(repo_path, stack)
-
         test_execution = run_real_tests(repo_path, stack)
-
         secrets_found = scan_for_exposed_secrets(repo_path)
 
         scores = calculate_scores(
@@ -211,9 +244,9 @@ def evaluate_repo(request: Request, payload: EvaluateRequest, current_user_id: i
                 run_result["success"], run_result["build_time_seconds"]
             )
 
+        repo_name = url_clean.split("/")[-1]
         ai_result = generate_ai_feedback(
-            payload.github_url.rstrip("/").split("/")[-1],
-            stack, structure_checks, test_results, scores
+            repo_name, stack, structure_checks, test_results, scores
         )
         if ai_result.get("available"):
             feedback["strengths"] = ai_result["strengths"] + feedback["strengths"]
@@ -227,12 +260,10 @@ def evaluate_repo(request: Request, payload: EvaluateRequest, current_user_id: i
         if similarity == 100.0:
             feedback["weaknesses"].insert(0, "This submission is structurally identical to a previously evaluated repository.")
 
-        repo_name = payload.github_url.rstrip("/").split("/")[-1]
-
         record = Evaluation(
             user_id=current_user_id,
             repo_name=repo_name,
-            github_url=payload.github_url,
+            github_url=url_clean,
             stack=stack,
             feature_completion=scores["feature_completion"],
             code_quality=scores["code_quality"],
@@ -260,50 +291,45 @@ def evaluate_repo(request: Request, payload: EvaluateRequest, current_user_id: i
 
         return {"status": "success", "data": record.to_dict()}
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        logger.exception("Repository evaluation failed for %s", payload.github_url)
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error. Please try again later.",
+        )
 
     finally:
         if repo_path:
             cleanup_repo(repo_path)
-        db.close()
 
 
 @app.get("/api/v1/leaderboard")
-def get_leaderboard():
-    """Public endpoint — no authentication required. Any external website
-    (e.g. the Ezitech Internship Portal) can call this directly to display
-    the scoreboard in its own UI."""
-    db = SessionLocal()
-    try:
-        records = db.query(Evaluation).order_by(Evaluation.overall_score.desc()).all()
-        return [r.to_dict() for r in records]
-    finally:
-        db.close()
+def get_leaderboard(db: Session = Depends(get_db)):
+    """Public endpoint to fetch the global evaluation leaderboard."""
+    records = db.query(Evaluation).order_by(Evaluation.overall_score.desc()).all()
+    return [r.to_dict() for r in records]
 
 
 @app.get("/api/v1/report/{evaluation_id}")
-def get_report(evaluation_id: int):
-    db = SessionLocal()
-    try:
-        record = db.query(Evaluation).filter(Evaluation.id == evaluation_id).first()
-        if not record:
-            raise HTTPException(status_code=404, detail="Evaluation not found")
-        return record.to_dict()
-    finally:
-        db.close()
+def get_report(evaluation_id: int, db: Session = Depends(get_db)):
+    record = db.query(Evaluation).filter(Evaluation.id == evaluation_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Evaluation report not found.")
+    return record.to_dict()
 
 
 @app.get("/api/v1/my-evaluations")
-def get_my_evaluations(user_id: int = Depends(get_current_user_id)):
-    """Returns only the evaluations submitted by the currently authenticated
-    user — useful for an external website's 'My Submissions' page."""
-    db = SessionLocal()
-    try:
-        records = db.query(Evaluation).filter(Evaluation.user_id == user_id).order_by(Evaluation.id.desc()).all()
-        return [r.to_dict() for r in records]
-    finally:
-        db.close()
+def get_my_evaluations(
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Returns evaluations submitted by the authenticated user."""
+    records = db.query(Evaluation).filter(Evaluation.user_id == user_id).order_by(Evaluation.id.desc()).all()
+    return [r.to_dict() for r in records]
 
 
 @app.get("/api/v1/system-stats")

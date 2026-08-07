@@ -5,13 +5,14 @@ docker==7.1.0
 gitpython
 python-multipart
 pydantic
+email-validator>=2.2.0
 psutil
 requests==2.31.0
 urllib3<2
 python-dotenv
 slowapi
 passlib[bcrypt]
-python-jose[cryptography]
-passlib[bcrypt]
 bcrypt==4.0.1
 python-jose[cryptography]
+groq
+PyMuPDF
